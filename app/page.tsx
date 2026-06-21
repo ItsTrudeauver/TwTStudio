@@ -73,7 +73,7 @@ export default function AdminStudio() {
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col p-6">
         <header className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">⭐ Stardust Command Center</h1>
+            <h1 className="text-xl font-bold tracking-tight">TwT Studio</h1>
             <p className="text-xs text-neutral-400">Logged in as: {session.user.email}</p>
           </div>
           <button onClick={handleLogout} className="bg-neutral-800 hover:bg-neutral-700 py-1.5 px-3 rounded text-xs transition-all">Sign Out</button>
@@ -172,7 +172,7 @@ export default function AdminStudio() {
     <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
       <div className="bg-neutral-900 p-8 rounded-lg shadow-2xl max-w-md w-full border border-neutral-800">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Project Stardust</h1>
+          <h1 className="text-2xl font-bold tracking-tight">TwT Studio</h1>
           <p className="text-neutral-500 text-sm mt-1">Admin Control Panel</p>
         </div>
 
