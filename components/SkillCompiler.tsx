@@ -116,6 +116,27 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       setSkillName('');
     }
   };
+  // New handler to delete a skill from the character's database array
+  const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
+    e.stopPropagation(); // Prevents clicking delete from also loading the skill into the editor
+    if (!selectedChar) return;
+    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${selectedChar.name}?`)) return;
+
+    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
+    const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
+
+    const { error } = await supabase
+      .from('characters_cache')
+      .update({ ability_tags: updatedSkills })
+      .eq('id', selectedChar.id);
+
+    if (error) {
+      alert(`Error deleting skill: ${error.message}`);
+    } else {
+      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
+      fetchRoster();
+    }
+  };
 
   const handleSaveAsPreset = () => {
     if (!skillName || !skillName.trim()) {
@@ -172,34 +193,46 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* PANEL 2.1: ACTIVE SKILLS & PRESETS */}
-      <div className="lg:col-span-2 flex flex-col gap-4">
-        {/* Active list */}
-        <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
-          {selectedChar ? (
-            <div className="space-y-3">
-              <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{selectedChar.name}</span></p>
-              {Array.isArray(selectedChar.ability_tags) && selectedChar.ability_tags.length > 0 ? (
-                selectedChar.ability_tags.map((skill: any, idx: number) => (
-                  <div key={idx} className="bg-neutral-950 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1">
-                    <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
-                    <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
-                    {skill.blocks?.map((b: any, bIdx: number) => (
-                      <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
-                        "{b.log_template}"
-                      </div>
-                    ))}
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-neutral-500 italic">No skills currently assigned to this unit.</p>
-              )}
-            </div>
-          ) : (
-            <p className="text-xs text-neutral-500 italic">Select a character from the index first.</p>
-          )}
-        </div>
+      {/* PANEL 2.1: ACTIVE SKILLS & PRESETS (Click to Load / Click to Delete) */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          {/* Active list */}
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
+            {selectedChar ? (
+              <div className="space-y-3">
+                <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{selectedChar.name}</span></p>
+                {Array.isArray(selectedChar.ability_tags) && selectedChar.ability_tags.length > 0 ? (
+                  selectedChar.ability_tags.map((skill: any, idx: number) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => handleLoadPreset(skill)} // Clicking the card loads it directly into the compiler!
+                      className="group bg-neutral-950 hover:bg-neutral-900/60 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1 cursor-pointer transition-all relative"
+                    >
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => handleDeleteSkill(e, skill.skill_name)}
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold"
+                      >
+                        ✕ Delete
+                      </button>
+
+                      <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
+                      <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
+                      {skill.blocks?.map((b: any, bIdx: number) => (
+                        <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
+                          "{b.log_template}"
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-neutral-500 italic">No skills currently assigned to this unit.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-500 italic">Select a character from the index first.</p>
+            )}
+          </div>
 
         {/* Local Presets list */}
         <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[240px] overflow-y-auto">
