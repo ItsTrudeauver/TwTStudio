@@ -15,7 +15,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   const [unsuppressable, setUnsuppressable] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
 
-  // Infinite Logical Chaining state initialization
+  // Infinite Logical Chaining state initialization (With nested branches list support)
   const [blocks, setBlocks] = useState<any[]>([
     { 
       trigger: 'ON_POWER_CALC', 
@@ -24,6 +24,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       value: '1.25', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
+      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.75', log: '' }],
       log: '{caster} entered Surge!' 
     }
   ]);
@@ -43,6 +44,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       value: '1.0', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
+      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
       log: '' 
     }]);
   };
@@ -57,6 +59,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -75,6 +78,27 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- NESTED BRANCHING STATE HELPERS ---
+  const addBranchField = (blockIdx: number) => {
+    const updated = [...blocks];
+    if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
+    updated[blockIdx].branches.push({ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' });
+    setBlocks(updated);
+  };
+
+  const removeBranchField = (blockIdx: number, branchIdx: number) => {
+    const updated = [...blocks];
+    updated[blockIdx].branches = updated[blockIdx].branches.filter((_: any, i: number) => i !== branchIdx);
+    setBlocks(updated);
+  };
+
+  const updateBranchField = (blockIdx: number, branchIdx: number, key: string, value: any) => {
+    const updated = [...blocks];
+    updated[blockIdx].branches[branchIdx][key] = value;
+    setBlocks(updated);
+  };
+
+  // --- SAVE SKILLS ---
   const handleSaveSkill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedChar) return;
@@ -89,13 +113,19 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         target: b.target,
         chance: Number(b.chance),
         action_type: b.action_type,
-        value: b.value,
-        log_template: b.log,
+        value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
+        log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
         conditions: b.conditions.map((c: any) => ({
           type: c.type,
           param: c.param,
           connector: c.connector
-        }))
+        })),
+        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((br: any) => ({
+          chance: Number(br.chance),
+          action_type: br.action_type,
+          value: br.value,
+          log_template: br.log
+        })) : []
       }))
     };
 
@@ -116,27 +146,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       setSkillName('');
     }
   };
-  // New handler to delete a skill from the character's database array
-  const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
-    e.stopPropagation(); // Prevents clicking delete from also loading the skill into the editor
-    if (!selectedChar) return;
-    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${selectedChar.name}?`)) return;
-
-    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
-    const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
-
-    const { error } = await supabase
-      .from('characters_cache')
-      .update({ ability_tags: updatedSkills })
-      .eq('id', selectedChar.id);
-
-    if (error) {
-      alert(`Error deleting skill: ${error.message}`);
-    } else {
-      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
-      fetchRoster();
-    }
-  };
 
   const handleSaveAsPreset = () => {
     if (!skillName || !skillName.trim()) {
@@ -153,13 +162,19 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         target: b.target,
         chance: Number(b.chance),
         action_type: b.action_type,
-        value: b.value,
-        log_template: b.log,
+        value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
+        log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
         conditions: b.conditions.map((c: any) => ({
           type: c.type,
           param: c.param,
           connector: c.connector
-        }))
+        })),
+        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((br: any) => ({
+          chance: Number(br.chance),
+          action_type: br.action_type,
+          value: br.value,
+          log_template: br.log
+        })) : []
       }))
     };
 
@@ -186,53 +201,66 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         type: c.type,
         param: c.param,
         connector: c.connector || 'AND'
-      })) : [{ type: 'NONE', param: '', connector: 'AND' }]
+      })) : [{ type: 'NONE', param: '', connector: 'AND' }],
+      branches: b.branches ? b.branches.map((br: any) => ({
+        chance: String(br.chance || 50),
+        action_type: br.action_type,
+        value: br.value,
+        log: br.log_template
+      })) : [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
     }));
     setBlocks(formattedBlocks);
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* PANEL 2.1: ACTIVE SKILLS & PRESETS (Click to Load / Click to Delete) */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Active list */}
-          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
-            {selectedChar ? (
-              <div className="space-y-3">
-                <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{selectedChar.name}</span></p>
-                {Array.isArray(selectedChar.ability_tags) && selectedChar.ability_tags.length > 0 ? (
-                  selectedChar.ability_tags.map((skill: any, idx: number) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => handleLoadPreset(skill)} // Clicking the card loads it directly into the compiler!
-                      className="group bg-neutral-950 hover:bg-neutral-900/60 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1 cursor-pointer transition-all relative"
+      {/* PANEL 2.1: ACTIVE SKILLS & PRESETS */}
+      <div className="lg:col-span-2 flex flex-col gap-4">
+        {/* Active list */}
+        <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
+          {selectedChar ? (
+            <div className="space-y-3">
+              <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{selectedChar.name}</span></p>
+              {Array.isArray(selectedChar.ability_tags) && selectedChar.ability_tags.length > 0 ? (
+                selectedChar.ability_tags.map((skill: any, idx: number) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => handleLoadPreset(skill)}
+                    className="group bg-neutral-950 hover:bg-neutral-900/60 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1 cursor-pointer transition-all relative"
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`🗑️ Delete "${skill.skill_name}" from ${selectedChar.name}?`)) {
+                          const updated = selectedChar.ability_tags.filter((s: any) => s.skill_name !== skill.skill_name);
+                          supabase.from('characters_cache').update({ ability_tags: updated }).eq('id', selectedChar.id).then(() => {
+                            setSelectedChar({ ...selectedChar, ability_tags: updated });
+                            fetchRoster();
+                          });
+                        }
+                      }}
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold"
                     >
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => handleDeleteSkill(e, skill.skill_name)}
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold"
-                      >
-                        ✕ Delete
-                      </button>
-
-                      <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
-                      <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
-                      {skill.blocks?.map((b: any, bIdx: number) => (
-                        <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
-                          "{b.log_template}"
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-neutral-500 italic">No skills currently assigned to this unit.</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-neutral-500 italic">Select a character from the index first.</p>
-            )}
-          </div>
+                      ✕ Delete
+                    </button>
+                    <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
+                    <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
+                    {skill.blocks?.map((b: any, bIdx: number) => (
+                      <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
+                        "{b.log_template || (b.action_type === 'REGISTER_CHANCE_ROUTER' ? 'Branches Chance Engine Triggered' : '')}"
+                      </div>
+                    ))}
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-neutral-500 italic">No skills currently assigned to this unit.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500 italic">Select a character from the index first.</p>
+          )}
+        </div>
 
         {/* Local Presets list */}
         <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[240px] overflow-y-auto">
@@ -247,7 +275,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
               ))}
             </div>
           ) : (
-            <p className="text-xs text-neutral-500 italic">No saved skill presets. Save one from the compiler to start building your library.</p>
+            <p className="text-xs text-neutral-500 italic">No saved skill presets.</p>
           )}
         </div>
       </div>
@@ -292,12 +320,17 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                 <div key={idx} className="bg-neutral-950/80 border border-neutral-800/80 p-3 rounded-lg relative space-y-3">
                   <button type="button" onClick={() => removeBlockField(idx)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs">✕</button>
                   
+                  {/* Line 1: WHEN / ON / CHANCE */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">WHEN (Trigger)</label>
                       <select
                         value={block.trigger}
-                        onChange={(e) => updateBlockField(idx, 'trigger', e.target.value)}
+                        onChange={(e) => {
+                          const next = [...blocks];
+                          next[idx].trigger = e.target.value;
+                          setBlocks(next);
+                        }}
                         className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
                       >
                         <option value="ON_BATTLE_START">Battle Starts</option>
@@ -332,7 +365,11 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                         min="1"
                         max="100"
                         value={block.chance}
-                        onChange={(e) => updateBlockField(idx, 'chance', e.target.value)}
+                        onChange={(e) => {
+                          const next = [...blocks];
+                          next[idx].chance = e.target.value;
+                          setBlocks(next);
+                        }}
                         className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
                         placeholder="e.g. 100"
                       />
@@ -343,7 +380,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                   <div className="bg-neutral-900/60 p-2 rounded border border-neutral-800 space-y-2">
                     <div className="flex items-center justify-between border-b border-neutral-800/40 pb-1">
                       <span className="text-[10px] uppercase font-bold text-neutral-400">🛡️ Logic Chain (IF Gates)</span>
-                      <button type="button" onClick={() => addConditionField(idx)} className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-0.5 px-2 rounded text-[9px]">+ Add Condition</button>
+                      <button type="button" onClick={() => addConditionField(idx)} className="bg-neutral-800 hover:bg-emerald-700 text-white font-bold py-0.5 px-2 rounded text-[9px]">+ Add Condition</button>
                     </div>
 
                     {block.conditions?.map((cond: any, condIdx: number) => (
@@ -390,8 +427,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                     ))}
                   </div>
 
-                  {/* DO & VALUE */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* DO & VALUE / BRANCHES */}
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">DO (Action Type)</label>
                       <select
@@ -413,30 +450,75 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                         <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier</option>
                         <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
                         <option value="REWARD_MULTIPLIER">Global Reward Multiplier</option>
+                        
+                        {/* THE NESTED BRANCH ROUTER */}
+                        <option value="REGISTER_CHANCE_ROUTER">Split Mutually Exclusive Branches (Joker)</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Modifier / Formula Value</label>
-                      <input
-                        type="text"
-                        value={block.value}
-                        onChange={(e) => updateBlockField(idx, 'value', e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
-                        placeholder="e.g. 1.50, dead_allies_count"
-                      />
-                    </div>
-                  </div>
 
-                  {/* Log Template */}
-                  <div>
-                    <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Log Template (Printed during combat)</label>
-                    <input
-                      type="text"
-                      value={block.log}
-                      onChange={(e) => updateBlockField(idx, 'log', e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-neutral-300"
-                      placeholder="e.g. {caster} went Berserk (+50% Power)!"
-                    />
+                    {/* DYNAMIC RENDERING: Standard Input vs. Nested Branches List */}
+                    {block.action_type === 'REGISTER_CHANCE_ROUTER' ? (
+                      <div className="bg-neutral-900/60 p-3 rounded border border-neutral-800 space-y-3">
+                        <div className="flex items-center justify-between border-b border-neutral-800/40 pb-1.5">
+                          <span className="text-[10px] uppercase font-bold text-neutral-400">🎲 Dynamic Either/Or Branches</span>
+                          <button type="button" onClick={() => addBranchField(idx)} className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-0.5 px-2 rounded text-[9px]">+ Add Branch</button>
+                        </div>
+
+                        {block.branches?.map((branch: any, brIdx: number) => (
+                          <div key={brIdx} className="bg-neutral-950 p-3 rounded border border-neutral-800/60 relative space-y-2">
+                            <button type="button" onClick={() => removeBranchField(idx, brIdx)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs">✕</button>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <div>
+                                <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Chance (%)</label>
+                                <input type="number" min="1" max="100" value={branch.chance} onChange={(e) => updateBranchField(idx, brIdx, 'chance', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" />
+                              </div>
+                              <div>
+                                <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch DO</label>
+                                <select value={branch.action_type} onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
+                                  <option value="MULTIPLY_POWER">Multiply Power</option>
+                                  <option value="ADD_FLAT_POWER">Add Flat Power</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Formula</label>
+                                <input type="text" value={branch.value} onChange={(e) => updateBranchField(idx, brIdx, 'value', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" placeholder="e.g. 1.75" />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Log</label>
+                              <input type="text" value={branch.log} onChange={(e) => updateBranchField(idx, brIdx, 'log', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-neutral-300" placeholder="e.g. {caster} flipped the Joker!" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Modifier / Formula Value</label>
+                          <input
+                            type="text"
+                            value={block.value}
+                            onChange={(e) => updateBlockField(idx, 'value', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
+                            placeholder="e.g. 1.50, dead_allies_count"
+                          />
+                        </div>
+
+                        {/* Log Template (Disabled for Chance Router as sub-branches hold their own logs!) */}
+                        <div>
+                          <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Log Template (Printed during combat)</label>
+                          <input
+                            type="text"
+                            value={block.log}
+                            onChange={(e) => updateBlockField(idx, 'log', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-neutral-300"
+                            placeholder="e.g. {caster} went Berserk (+50% Power)!"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
