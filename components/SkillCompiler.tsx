@@ -422,6 +422,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="ADJACENT_ALLIES">Adjacent Allies</option>
                           <option value="ALL_ALLIES">All Allies</option>
                           <option value="RANDOM_OPPONENT">Random Opponent</option>
+                          <option value="ALL_ENEMIES">All Enemies</option>
                           <option value="WEAKEST_ALLY">Weakest Ally</option>
                           <option value="WEAKEST_ENEMY">Weakest Enemy</option>
                           <option value="STRONGEST_ALLY">Strongest Ally</option>
