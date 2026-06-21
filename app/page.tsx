@@ -68,12 +68,13 @@ export default function AdminStudio() {
   };
 
   // --- WORKSPACE VIEW (Authenticated) ---
+  // Replace your if (session) block in app/page.tsx with this full-width router:
   if (session) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col p-6">
         <header className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">TwT Studio</h1>
+            <h1 className="text-xl font-bold tracking-tight">⭐ TwT Command Center</h1>
             <p className="text-xs text-neutral-400">Logged in as: {session.user.email}</p>
           </div>
           <button onClick={handleLogout} className="bg-neutral-800 hover:bg-neutral-700 py-1.5 px-3 rounded text-xs transition-all">Sign Out</button>
@@ -107,62 +108,26 @@ export default function AdminStudio() {
           </button>
         </div>
 
-        {/* Global Application Layout Wrapper */}
-        {activeTab === 'skills' ? (
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1">
-            {/* LEFT PANEL: ROSTER INDEX (With Search) */}
-          <div className="xl:col-span-2 bg-neutral-900 border border-neutral-800 rounded-lg p-3 h-[calc(100vh-180px)] overflow-y-auto flex flex-col">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Roster Index</h2>
-            
-            {/* Search Input Bar */}
-            <input
-              type="text"
-              placeholder="🔍 Search roster..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white mb-3 focus:outline-none focus:border-neutral-700"
+        {/* Global Application Layout (All Tabs are now 100% Full-Width) */}
+        <div className="flex-1">
+          {activeTab === 'skills' && (
+            <SkillCompiler 
+              selectedChar={selectedChar} 
+              setSelectedChar={setSelectedChar} 
+              fetchRoster={fetchRoster} 
+              roster={roster} // <--- Pass roster to compiler
             />
-
-            <div className="space-y-1.5 flex-1 overflow-y-auto">
-              {roster
-                .filter(char => char.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((char) => (
-                  <button
-                    key={char.id}
-                    onClick={() => setSelectedChar(char)}
-                    className={`w-full text-left p-2 rounded text-xs transition-all border ${selectedChar?.id === char.id ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-neutral-950/40 border-transparent text-neutral-400 hover:bg-neutral-800/40'}`}
-                  >
-                    <div className="font-semibold flex justify-between">
-                      <span>{char.name}</span>
-                      <span className="text-neutral-500 text-[10px]">ID {char.id}</span>
-                    </div>
-                    <div className="text-[10px] text-neutral-500 mt-0.5">
-                      {char.rarity} | Pow: {char.true_power}
-                    </div>
-                  </button>
-                ))}
-            </div>
-          </div>
-
-            {/* Right Panel: Skill Compiler Wrapper */}
-            <div className="xl:col-span-10">
-              <SkillCompiler selectedChar={selectedChar} setSelectedChar={setSelectedChar} fetchRoster={fetchRoster} />
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1">
-
-{activeTab === 'roster' && (
-  <RosterCreator 
-    selectedChar={selectedChar} 
-    setSelectedChar={setSelectedChar} 
-    fetchRoster={fetchRoster} 
-  />
-)}
-            {activeTab === 'banners' && <BannerManager roster={roster} />}
-            {activeTab === 'auditor' && <PlayerAuditor />}
-          </div>
-        )}
+          )}
+          {activeTab === 'roster' && (
+            <RosterCreator 
+              selectedChar={selectedChar} 
+              setSelectedChar={setSelectedChar} 
+              fetchRoster={fetchRoster} 
+            />
+          )}
+          {activeTab === 'banners' && <BannerManager roster={roster} />}
+          {activeTab === 'auditor' && <PlayerAuditor />}
+        </div>
       </div>
     );
   }
