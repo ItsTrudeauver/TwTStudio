@@ -123,6 +123,7 @@ export default function AdminStudio() {
               selectedChar={selectedChar} 
               setSelectedChar={setSelectedChar} 
               fetchRoster={fetchRoster} 
+              roster={roster}
             />
           )}
           {activeTab === 'banners' && <BannerManager roster={roster} />}

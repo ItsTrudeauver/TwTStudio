@@ -4,28 +4,27 @@ import { supabase } from '../lib/supabase';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
-// Replace lines 7-11 in components/RosterCreator.tsx with this:
 interface RosterCreatorProps {
   selectedChar: any;
   setSelectedChar: (char: any) => void;
   fetchRoster: () => void;
+  roster: any[]; // Fully typed roster property
 }
 
-export default function RosterCreator({ selectedChar, setSelectedChar, fetchRoster }: RosterCreatorProps) {
+export default function RosterCreator({ selectedChar, setSelectedChar, fetchRoster, roster }: RosterCreatorProps) {
   const [charName, setCharName] = useState('');
   const [rarity, setRarity] = useState('R');
   const [power, setPower] = useState(1000);
   const [anilistId, setAnilistId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
-  
 
   // Cropper State
   const [imgSrc, setImgSrc] = useState('');
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<any>(null);
+  const [croppedFile, setCroppedFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [croppedFile, setCroppedFile] = useState<File | null>(null);
 
   // Detect Selected Character to trigger Edit Mode
   useEffect(() => {
@@ -107,6 +106,10 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
         if (dbError) throw new Error(dbError.message);
       } else {
         // --- CREATION MODE ---
+        if (!croppedFile) {
+          throw new Error("Portrait crop is required for new card variants!");
+        }
+
         const { data: newChar, error: dbError } = await supabase
           .from('characters_cache')
           .insert({
@@ -123,7 +126,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
         charId = newChar.id;
       }
 
-      // Upload portrait if present in state (replaces the old completedCrop check)
+      // Upload portrait if present in state (handles custom ID naming cleanly)
       if (croppedFile) {
         const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
         await supabase.storage.from('portraits').upload(`${charId}.jpg`, fileToUpload, { upsert: true });
@@ -142,89 +145,108 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   };
 
   return (
-    <div className="bg-neutral-900 p-6 rounded-lg border border-neutral-800 max-w-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-md font-bold">{selectedChar ? '⚙️ Edit Character / Rebalance' : '👤 Create New Card Variant'}</h2>
-        {selectedChar && (
-          <button type="button" onClick={handleClearSelection} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 py-1 px-3 rounded text-xs">
-            + New Character
-          </button>
-        )}
+    <div className="space-y-4">
+      {/* 1. Horizontal Roster Selector Dropdown */}
+      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800">
+        <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Select Character to Edit:</label>
+        <select
+          value={selectedChar?.id || ''}
+          onChange={(e) => {
+            const char = roster.find(r => r.id === Number(e.target.value));
+            setSelectedChar(char || null);
+          }}
+          className="bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white min-w-[200px] focus:outline-none"
+        >
+          <option value="">Choose from roster...</option>
+          {roster.map(char => (
+            <option key={char.id} value={char.id}>{char.name} ({char.rarity}) [ID {char.id}]</option>
+          ))}
+        </select>
       </div>
 
-      <form onSubmit={handleSaveCharacter} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Unit Name</label>
-          <input
-            type="text"
-            required
-            value={charName}
-            onChange={(e) => setCharName(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
-          />
+      {/* 2. Card Metadata Creator */}
+      <div className="bg-neutral-900 p-6 rounded-lg border border-neutral-800 max-w-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-md font-bold">{selectedChar ? '⚙️ Edit Character / Rebalance' : '👤 Create New Card Variant'}</h2>
+          {selectedChar && (
+            <button type="button" onClick={handleClearSelection} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 py-1 px-3 rounded text-xs">
+              + New Character
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveCharacter} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Rarity</label>
-            <select
-              value={rarity}
-              onChange={(e) => setRarity(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
-            >
-              <option value="R">R</option>
-              <option value="SR">SR</option>
-              <option value="SSR">SSR</option>
-              <option value="UR">UR</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Base Power</label>
+            <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Unit Name</label>
             <input
-              type="number"
+              type="text"
               required
-              value={power}
-              onChange={(e) => setPower(Number(e.target.value))}
+              value={charName}
+              onChange={(e) => setCharName(e.target.value)}
               className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">AniList ID (Optional)</label>
-          <input
-            type="number"
-            value={anilistId}
-            onChange={(e) => setAnilistId(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
-            placeholder="e.g. 422"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">
-            {selectedChar ? 'Update Portrait (Optional)' : 'Upload Portrait File'}
-          </label>
-          <input type="file" accept="image/*" onChange={onSelectFile} className="w-full text-xs text-neutral-400 file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-neutral-800 file:text-neutral-300" />
-        </div>
-
-        <button type="submit" disabled={formLoading} className="w-full bg-neutral-100 hover:bg-white text-neutral-900 font-semibold py-2 px-4 rounded text-sm disabled:opacity-50 transition-all">
-          {formLoading ? 'Saving...' : selectedChar ? 'Commit Rebalance' : 'Save & Upload Card'}
-        </button>
-      </form>
-
-      {/* --- VISUAL CROPPER MODAL --- */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-neutral-900 p-6 rounded-lg max-w-lg w-full border border-neutral-800 shadow-2xl flex flex-col items-center">
-            <h3 className="text-md font-bold mb-4 text-center">🎨 Adjust Card Portrait Crop</h3>
-            <div className="max-h-[400px] overflow-auto mb-4 border border-neutral-800 rounded">
-              <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={(c) => setCompletedCrop(c)} aspect={2 / 3}>
-                <img ref={imgRef} src={imgSrc} onLoad={onImageLoad} alt="Source" className="max-w-full h-auto" />
-              </ReactCrop>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Rarity</label>
+              <select
+                value={rarity}
+                onChange={(e) => setRarity(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
+              >
+                <option value="R">R</option>
+                <option value="SR">SR</option>
+                <option value="SSR">SSR</option>
+                <option value="UR">UR</option>
+              </select>
             </div>
-            {/* Replace the button inside the modalOpen block with this: */}
-              <button
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Base Power</label>
+              <input
+                type="number"
+                required
+                value={power}
+                onChange={(e) => setPower(Number(e.target.value))}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">AniList ID (Optional)</label>
+            <input
+              type="number"
+              value={anilistId}
+              onChange={(e) => setAnilistId(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
+              placeholder="e.g. 422"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">
+              {selectedChar ? 'Update Portrait (Optional)' : 'Upload Portrait File'}
+            </label>
+            <input type="file" accept="image/*" onChange={onSelectFile} className="w-full text-xs text-neutral-400 file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-neutral-800 file:text-neutral-300" />
+          </div>
+
+          <button type="submit" disabled={formLoading} className="w-full bg-neutral-100 hover:bg-white text-neutral-900 font-semibold py-2 px-4 rounded text-sm disabled:opacity-50 transition-all">
+            {formLoading ? 'Saving...' : selectedChar ? 'Commit Rebalance' : 'Save & Upload Card'}
+          </button>
+        </form>
+
+        {/* --- VISUAL CROPPER MODAL --- */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-neutral-900 p-6 rounded-lg max-w-lg w-full border border-neutral-800 shadow-2xl flex flex-col items-center">
+              <h3 className="text-md font-bold mb-4 text-center">🎨 Adjust Card Portrait Crop</h3>
+              <div className="max-h-[400px] overflow-auto mb-4 border border-neutral-800 rounded">
+                <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={(c) => setCompletedCrop(c)} aspect={2 / 3}>
+                  <img ref={imgRef} src={imgSrc} onLoad={onImageLoad} alt="Source" className="max-w-full h-auto" />
+                </ReactCrop>
+              </div>
+              <button 
                 onClick={async () => {
                   if (imgRef.current && completedCrop) {
                     try {
@@ -241,9 +263,10 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
               >
                 Apply Crop Selection
               </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
