@@ -1,4 +1,6 @@
 // components/RosterCreator.tsx
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
@@ -8,7 +10,7 @@ interface RosterCreatorProps {
   selectedChar: any;
   setSelectedChar: (char: any) => void;
   fetchRoster: () => void;
-  roster: any[]; // Fully typed roster property
+  roster: any[];
 }
 
 export default function RosterCreator({ selectedChar, setSelectedChar, fetchRoster, roster }: RosterCreatorProps) {
@@ -17,6 +19,10 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   const [power, setPower] = useState(1000);
   const [anilistId, setAnilistId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+
+  // Searchable Dropdown State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
   // Cropper State
   const [imgSrc, setImgSrc] = useState('');
@@ -47,6 +53,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
     setImgSrc('');
     setCompletedCrop(null);
     setCroppedFile(null);
+    setSearchTerm('');
   };
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,7 +133,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
         charId = newChar.id;
       }
 
-      // Upload portrait if present in state (handles custom ID naming cleanly)
+      // Upload portrait if present in state
       if (croppedFile) {
         const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
         await supabase.storage.from('portraits').upload(`${charId}.jpg`, fileToUpload, { upsert: true });
@@ -146,25 +153,56 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
 
   return (
     <div className="space-y-4">
-      {/* 1. Horizontal Roster Selector Dropdown */}
-      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800">
+      {/* Search-As-You-Type Horizontal Roster Selector */}
+      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800 relative">
         <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Select Character to Edit:</label>
-        <select
-          value={selectedChar?.id || ''}
-          onChange={(e) => {
-            const char = roster.find(r => r.id === Number(e.target.value));
-            setSelectedChar(char || null);
-          }}
-          className="bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white min-w-[200px] focus:outline-none"
-        >
-          <option value="">Choose from roster...</option>
-          {roster.map(char => (
-            <option key={char.id} value={char.id}>{char.name} ({char.rarity}) [ID {char.id}]</option>
-          ))}
-        </select>
+        
+        <div className="relative min-w-[260px]">
+          <input
+            type="text"
+            placeholder="🔍 Search character name..."
+            value={isOpen ? searchTerm : (selectedChar ? `${selectedChar.name} (${selectedChar.rarity})` : '')}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => {
+              setSearchTerm('');
+              setIsOpen(true);
+            }}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-neutral-700"
+          />
+          {isOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded shadow-2xl z-50">
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-red-400 border-b border-neutral-800 font-bold"
+              >
+                ✕ Clear Selection
+              </button>
+              {roster
+                .filter(char => char.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map(char => (
+                  <button
+                    key={char.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedChar(char);
+                      setSearchTerm(`${char.name} (${char.rarity})`);
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300"
+                  >
+                    {char.name} ({char.rarity}) [ID {char.id}]
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 2. Card Metadata Creator */}
+      {/* Card Metadata Creator */}
       <div className="bg-neutral-900 p-6 rounded-lg border border-neutral-800 max-w-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-md font-bold">{selectedChar ? '⚙️ Edit Character / Rebalance' : '👤 Create New Card Variant'}</h2>

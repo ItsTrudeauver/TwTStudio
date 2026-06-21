@@ -1,4 +1,6 @@
 // components/SkillCompiler.tsx
+'use client';
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -16,16 +18,19 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   const [unsuppressable, setUnsuppressable] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
 
-  // Infinite Logical Chaining state initialization (With nested branches list support)
+  // Search-dropdown states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
   const [blocks, setBlocks] = useState<any[]>([
     { 
       trigger: 'ON_POWER_CALC', 
       target: 'SELF', 
-      action_type: 'MULTIPLY_POWER', 
-      value: '1.25', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.75', log: '' }],
+      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
+      action_type: 'MULTIPLY_POWER', 
+      value: '1.25', 
       log: '{caster} entered Surge!' 
     }
   ]);
@@ -41,11 +46,11 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks([...blocks, { 
       trigger: 'ON_POWER_CALC', 
       target: 'SELF', 
-      action_type: 'MULTIPLY_POWER', 
-      value: '1.0', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
       branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
+      action_type: 'MULTIPLY_POWER', 
+      value: '1.0', 
       log: '' 
     }]);
   };
@@ -60,7 +65,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -79,7 +83,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-  // --- NESTED BRANCHING STATE HELPERS ---
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
@@ -99,7 +102,29 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-  // --- SAVE SKILLS ---
+// 1. CLEANED DELETE HANDLER (Filters out deleted skill using skillNameToDelete)
+  const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
+    e.stopPropagation();
+    if (!selectedChar) return;
+    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${selectedChar.name}?`)) return;
+
+    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
+    const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
+
+    const { error } = await supabase
+      .from('characters_cache')
+      .update({ ability_tags: updatedSkills })
+      .eq('id', selectedChar.id);
+
+    if (error) {
+      alert(`Error deleting skill: ${error.message}`);
+    } else {
+      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
+      fetchRoster();
+    }
+  };
+
+  // 2. CLEANED SAVE HANDLER (Correctly typed as (s: any) to prevent implicit any warnings)
   const handleSaveSkill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedChar) return;
@@ -131,7 +156,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     };
 
     const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
-    const updatedSkills = [...currentSkills, compiledSkill];
+    const updatedSkills = [...currentSkills.filter((s: any) => s.skill_name !== skillName), compiledSkill];
 
     const { error } = await supabase
       .from('characters_cache')
@@ -179,7 +204,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       }))
     };
 
-    const updatedPresets = [...presets.filter(p => p.skill_name !== skillName), compiledSkill];
+    // Replace your updatedPresets line with this:
+    const updatedPresets = [...presets.filter((p: any) => p.skill_name !== skillName), compiledSkill];
     setPresets(updatedPresets);
     localStorage.setItem('stardust_skill_presets', JSON.stringify(updatedPresets));
     alert(`📁 Saved "${skillName}" to Presets Library!`);
@@ -212,52 +238,66 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     }));
     setBlocks(formattedBlocks);
   };
-// Paste this right above the "return (" inside components/SkillCompiler.tsx:
-  const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
-    e.stopPropagation(); // Prevents clicking delete from also loading the skill into the editor
-    if (!selectedChar) return;
-    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${selectedChar.name}?`)) return;
 
-    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
-    const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
-
-    const { error } = await supabase
-      .from('characters_cache')
-      .update({ ability_tags: updatedSkills })
-      .eq('id', selectedChar.id);
-
-    if (error) {
-      alert(`Error deleting skill: ${error.message}`);
-    } else {
-      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
-      fetchRoster();
-    }
-  };
   return (
     <div className="space-y-4 h-[calc(100vh-180px)] overflow-y-auto">
-      {/* 1. Horizontal Roster Selector Dropdown */}
-      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800">
+      {/* Search-As-You-Type Horizontal Roster Selector */}
+      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800 relative">
         <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Select Character to Edit:</label>
-        <select
-          value={selectedChar?.id || ''}
-          onChange={(e) => {
-            const char = roster.find(r => r.id === Number(e.target.value));
-            setSelectedChar(char || null);
-          }}
-          className="bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white min-w-[200px] focus:outline-none"
-        >
-          <option value="">Choose from roster...</option>
-          {roster.map(char => (
-            <option key={char.id} value={char.id}>{char.name} ({char.rarity}) [ID {char.id}]</option>
-          ))}
-        </select>
+        
+        <div className="relative min-w-[260px]">
+          <input
+            type="text"
+            placeholder="🔍 Search character name..."
+            value={isOpen ? searchTerm : (selectedChar ? `${selectedChar.name} (${selectedChar.rarity})` : '')}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => {
+              setSearchTerm('');
+              setIsOpen(true);
+            }}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-neutral-700"
+          />
+          {isOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded shadow-2xl z-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedChar(null);
+                  setSearchTerm('');
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 hover:bg-neutral-850 text-xs text-red-400 border-b border-neutral-800 font-bold"
+              >
+                ✕ Clear Selection
+              </button>
+              {roster
+                .filter(char => char.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map(char => (
+                  <button
+                    key={char.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedChar(char);
+                      setSearchTerm(`${char.name} (${char.rarity})`);
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300"
+                  >
+                    {char.name} ({char.rarity}) [ID {char.id}]
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 2. Grid Container (Roster Selector is now free, letting these panels stretch out!) */}
+      {/* Grid Container */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* PANEL 2.1: ACTIVE SKILLS & PRESETS */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Active list */}
           <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
             {selectedChar ? (
@@ -272,7 +312,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                     >
                       <button
                         onClick={(e) => handleDeleteSkill(e, skill.skill_name)}
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold"
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px]"
                       >
                         ✕ Delete
                       </button>
