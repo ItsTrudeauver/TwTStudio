@@ -22,13 +22,14 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
+  // In-state blocks initialized with complete double condition and nested branches
   const [blocks, setBlocks] = useState<any[]>([
     { 
       trigger: 'ON_POWER_CALC', 
       target: 'SELF', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.75', log: '' }],
       action_type: 'MULTIPLY_POWER', 
       value: '1.25', 
       log: '{caster} entered Surge!' 
@@ -48,7 +49,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       target: 'SELF', 
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
       action_type: 'MULTIPLY_POWER', 
       value: '1.0', 
       log: '' 
@@ -65,6 +66,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -83,10 +85,11 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- NESTED BRANCHING STATE HELPERS ---
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
-    updated[blockIdx].branches.push({ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' });
+    updated[blockIdx].branches.push({ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' });
     setBlocks(updated);
   };
 
@@ -102,7 +105,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-// 1. CLEANED DELETE HANDLER (Filters out deleted skill using skillNameToDelete)
   const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
     e.stopPropagation();
     if (!selectedChar) return;
@@ -124,7 +126,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     }
   };
 
-  // 2. CLEANED SAVE HANDLER (Correctly typed as (s: any) to prevent implicit any warnings)
   const handleSaveSkill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedChar) return;
@@ -146,11 +147,12 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           param: c.param,
           connector: c.connector
         })),
-        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((br: any) => ({
-          chance: Number(br.chance),
-          action_type: br.action_type,
-          value: br.value,
-          log_template: br.log
+        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((branch: any) => ({
+          chance: Number(branch.chance),
+          target: branch.target || 'INHERIT',
+          action_type: branch.action_type,
+          value: branch.value,
+          log_template: branch.log
         })) : []
       }))
     };
@@ -195,16 +197,16 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           param: c.param,
           connector: c.connector
         })),
-        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((br: any) => ({
-          chance: Number(br.chance),
-          action_type: br.action_type,
-          value: br.value,
-          log_template: br.log
+        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((branch: any) => ({
+          chance: Number(branch.chance),
+          target: branch.target || 'INHERIT',
+          action_type: branch.action_type,
+          value: branch.value,
+          log_template: branch.log
         })) : []
       }))
     };
 
-    // Replace your updatedPresets line with this:
     const updatedPresets = [...presets.filter((p: any) => p.skill_name !== skillName), compiledSkill];
     setPresets(updatedPresets);
     localStorage.setItem('stardust_skill_presets', JSON.stringify(updatedPresets));
@@ -229,12 +231,13 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         param: c.param,
         connector: c.connector || 'AND'
       })) : [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: b.branches ? b.branches.map((br: any) => ({
-        chance: String(br.chance || 50),
-        action_type: br.action_type,
-        value: br.value,
-        log: br.log_template
-      })) : [{ chance: '50', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
+      branches: b.branches ? b.branches.map((branch: any) => ({
+        chance: String(branch.chance || 50),
+        target: branch.target || 'INHERIT',
+        action_type: branch.action_type,
+        value: branch.value,
+        log: branch.log_template
+      })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
     }));
     setBlocks(formattedBlocks);
   };
@@ -421,8 +424,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="SELF">Self</option>
                           <option value="ADJACENT_ALLIES">Adjacent Allies</option>
                           <option value="ALL_ALLIES">All Allies</option>
-                          <option value="RANDOM_OPPONENT">Random Opponent</option>
                           <option value="ALL_ENEMIES">All Enemies</option>
+                          <option value="RANDOM_OPPONENT">Random Opponent</option>
                           <option value="WEAKEST_ALLY">Weakest Ally</option>
                           <option value="WEAKEST_ENEMY">Weakest Enemy</option>
                           <option value="STRONGEST_ALLY">Strongest Ally</option>
@@ -539,10 +542,24 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                             <div key={brIdx} className="bg-neutral-950 p-3 rounded border border-neutral-800/60 relative space-y-2">
                               <button type="button" onClick={() => removeBranchField(idx, brIdx)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs">✕</button>
                               
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                                 <div>
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Chance (%)</label>
                                   <input type="number" min="1" max="100" value={branch.chance} onChange={(e) => updateBranchField(idx, brIdx, 'chance', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" />
+                                </div>
+                                <div>
+                                  <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Target</label>
+                                  <select value={branch.target || 'INHERIT'} onChange={(e) => updateBranchField(idx, brIdx, 'target', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
+                                    <option value="INHERIT">Inherit (Use Parent Target)</option>
+                                    <option value="SELF">Self (Caster)</option>
+                                    <option value="ALL_ALLIES">All Allies</option>
+                                    <option value="ALL_ENEMIES">All Enemies</option>
+                                    <option value="RANDOM_OPPONENT">Random Opponent</option>
+                                    <option value="WEAKEST_ALLY">Weakest Ally</option>
+                                    <option value="WEAKEST_ENEMY">Weakest Enemy</option>
+                                    <option value="STRONGEST_ALLY">Strongest Ally</option>
+                                    <option value="STRONGEST_ENEMY">Strongest Enemy</option>
+                                  </select>
                                 </div>
                                 <div>
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch DO</label>
