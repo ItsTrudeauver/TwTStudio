@@ -17,6 +17,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   const [power, setPower] = useState(1000);
   const [anilistId, setAnilistId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  
 
   // Cropper State
   const [imgSrc, setImgSrc] = useState('');
@@ -24,6 +25,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   const [completedCrop, setCompletedCrop] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const [croppedFile, setCroppedFile] = useState<File | null>(null);
 
   // Detect Selected Character to trigger Edit Mode
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
     setAnilistId('');
     setImgSrc('');
     setCompletedCrop(null);
+    setCroppedFile(null);
   };
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,11 +123,10 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
         charId = newChar.id;
       }
 
-      // Upload portrait if a new one was selected and cropped
-      if (completedCrop && imgRef.current) {
-        const portraitBlob = await getCroppedImageBlob(imgRef.current, completedCrop);
-        const file = new File([portraitBlob], `${charId}.jpg`, { type: 'image/jpeg' });
-        await supabase.storage.from('portraits').upload(`${charId}.jpg`, file, { upsert: true });
+      // Upload portrait if present in state (replaces the old completedCrop check)
+      if (croppedFile) {
+        const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
+        await supabase.storage.from('portraits').upload(`${charId}.jpg`, fileToUpload, { upsert: true });
 
         const { data: { publicUrl } } = supabase.storage.from('portraits').getPublicUrl(`${charId}.jpg`);
         await supabase.from('characters_cache').update({ image_url: publicUrl }).eq('id', charId);
@@ -221,9 +223,24 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
                 <img ref={imgRef} src={imgSrc} onLoad={onImageLoad} alt="Source" className="max-w-full h-auto" />
               </ReactCrop>
             </div>
-            <button onClick={() => setModalOpen(false)} className="bg-neutral-100 hover:bg-white text-neutral-900 px-6 py-2 rounded text-sm font-semibold transition-all w-full">
-              Apply Crop Selection
-            </button>
+            {/* Replace the button inside the modalOpen block with this: */}
+              <button
+                onClick={async () => {
+                  if (imgRef.current && completedCrop) {
+                    try {
+                      const blob = await getCroppedImageBlob(imgRef.current, completedCrop);
+                      const file = new File([blob], "temp.jpg", { type: 'image/jpeg' });
+                      setCroppedFile(file);
+                    } catch (e) {
+                      console.error("Failed to crop image:", e);
+                    }
+                  }
+                  setModalOpen(false);
+                }}
+                className="bg-neutral-100 hover:bg-white text-neutral-900 px-6 py-2 rounded text-sm font-semibold transition-all w-full"
+              >
+                Apply Crop Selection
+              </button>
           </div>
         </div>
       )}
