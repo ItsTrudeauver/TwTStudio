@@ -19,6 +19,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   const [power, setPower] = useState(1000);
   const [anilistId, setAnilistId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
 
   // Searchable Dropdown State
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +40,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
       setRarity(selectedChar.rarity);
       setPower(selectedChar.true_power);
       setAnilistId(selectedChar.anilist_id ? String(selectedChar.anilist_id) : '');
+      setIsLimited(selectedChar.is_limited || false); // <--- Pre-fills edit state
     } else {
       handleClearSelection();
     }
@@ -53,7 +55,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
     setImgSrc('');
     setCompletedCrop(null);
     setCroppedFile(null);
-    setSearchTerm('');
+    setIsLimited(false); // <--- Resets state
   };
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +109,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
             rarity,
             true_power: Number(power),
             anilist_id: anilistId ? Number(anilistId) : null,
+            is_limited: isLimited
           })
           .eq('id', charId);
 
@@ -260,6 +263,19 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
               className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
               placeholder="e.g. 422"
             />
+          </div>
+          {/* Checkbox input in components/RosterCreator.tsx */}
+          <div className="flex items-center pt-2">
+            <input
+              type="checkbox"
+              id="isLimited"
+              checked={isLimited}
+              onChange={(e) => setIsLimited(e.target.checked)}
+              className="mr-2 h-4 w-4 bg-neutral-950 border-neutral-800 rounded focus:ring-0"
+            />
+            <label htmlFor="isLimited" className="text-xs font-semibold text-neutral-400">
+              Limited (Pullable on Featured Banner Only)
+            </label>
           </div>
 
           <div>
