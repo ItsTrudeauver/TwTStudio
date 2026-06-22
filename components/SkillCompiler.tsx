@@ -13,6 +13,7 @@ interface SkillCompilerProps {
 
 export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRoster, roster }: SkillCompilerProps) {
   const [skillName, setSkillName] = useState('');
+  const [description, setDescription] = useState(''); // <--- ADDED STATE
   const [appliesIn, setAppliesIn] = useState<'combat' | 'expedition' | 'global'>('combat');
   const [priority, setPriority] = useState(10);
   const [unsuppressable, setUnsuppressable] = useState(false);
@@ -134,6 +135,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
     const compiledSkill = {
       skill_name: skillName,
+      description: description.trim(), // <--- SAVES PLAIN DESCRIPTION
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
@@ -174,6 +176,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
       fetchRoster();
       setSkillName('');
+      setDescription(''); // <--- CLEARS STATE
     }
   };
 
@@ -184,6 +187,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     }
     const compiledSkill = {
       skill_name: skillName,
+      description: description.trim(), // <--- PRESETS SUPPORT
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
@@ -217,6 +221,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
   const handleLoadPreset = (preset: any) => {
     setSkillName(preset.skill_name);
+    setDescription(preset.description || ''); // <--- LOADS PLAIN DESCRIPTION
     setAppliesIn(preset.applies_in);
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
@@ -397,6 +402,19 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                   <input type="checkbox" id="unsuppressable" checked={unsuppressable} onChange={(e) => setUnsuppressable(e.target.checked)} className="mr-2" />
                   <label htmlFor="unsuppressable" className="text-xs font-semibold text-neutral-400">Unsuppressable</label>
                 </div>
+              </div>
+
+              {/* DYNAMIC DESCRIPTION INPUT FIELD CONTAINER */}
+              <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
+                <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Skill Plaintext Description</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700 resize-none"
+                  placeholder="Strict operational explanation. What happens, when, to whom. No flavor."
+                />
               </div>
 
               <div className="space-y-3">
