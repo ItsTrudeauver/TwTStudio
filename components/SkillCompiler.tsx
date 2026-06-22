@@ -219,26 +219,38 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
     
-    const formattedBlocks = preset.blocks.map((b: any) => ({
-      trigger: b.trigger,
-      target: b.target,
-      chance: String(b.chance || 100),
-      action_type: b.action_type,
-      value: b.value,
-      log: b.log_template,
-      conditions: b.conditions ? b.conditions.map((c: any) => ({
-        type: c.type,
-        param: c.param,
-        connector: c.connector || 'AND'
-      })) : [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: b.branches ? b.branches.map((branch: any) => ({
-        chance: String(branch.chance || 50),
-        target: branch.target || 'INHERIT',
-        action_type: branch.action_type,
-        value: branch.value,
-        log: branch.log_template
-      })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
-    }));
+    // Replace the formattedBlocks declaration inside handleLoadPreset (components/SkillCompiler.tsx):
+    const formattedBlocks = preset.blocks.map((b: any) => {
+      // Check if target is a selective exception (e.g. ALL_ALLIES_EXCEPT_111)
+      const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
+      const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
+      const exceptId = isExcept ? b.target.split('_').pop() : '';
+
+      return {
+        trigger: b.trigger,
+        target: baseTarget,
+        chance: String(b.chance || 100),
+        action_type: b.action_type,
+        value: b.value,
+        log: b.log_template,
+        conditions: b.conditions ? b.conditions.map((c: any) => ({
+          type: c.type,
+          param: c.param,
+          connector: c.connector || 'AND'
+        })) : [{ 
+          type: 'NONE', 
+          param: isExcept ? exceptId : '', // Auto-pre-fills Guts' ID into the condition parameter box!
+          connector: 'AND' 
+        }],
+        branches: b.branches ? b.branches.map((branch: any) => ({
+          chance: String(branch.chance || 50),
+          target: branch.target || 'INHERIT',
+          action_type: branch.action_type,
+          value: branch.value,
+          log: branch.log_template
+        })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
+      };
+    });
     setBlocks(formattedBlocks);
   };
 
