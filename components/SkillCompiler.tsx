@@ -1,3 +1,4 @@
+// components/SkillCompiler.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -67,6 +68,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -85,6 +87,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
+  // --- NESTED BRANCHING STATE HELPERS ---
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
@@ -412,7 +415,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                             next[idx].trigger = e.target.value;
                             setBlocks(next);
                           }}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
                         >
                           <option value="ON_BATTLE_START">Battle Starts</option>
                           <option value="ON_POWER_CALC">Power is Calculated</option>
@@ -420,26 +423,49 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="ON_BATTLE_END">Battle Ends</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">ON (Target)</label>
-                        <select
-                          value={block.target}
-                          onChange={(e) => updateBlockField(idx, 'target', e.target.value)}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
-                        >
-                          <option value="SELF">Self</option>
-                          <option value="ADJACENT_ALLIES">Adjacent Allies</option>
-                          <option value="ALL_ALLIES">All Allies</option>
-                          <option value="ALL_ENEMIES">All Enemies</option>
-                          <option value="RANDOM_OPPONENT">Random Opponent</option>
-                          <option value="WEAKEST_ALLY">Weakest Ally</option>
-                          <option value="WEAKEST_ENEMY">Weakest Enemy</option>
-                          <option value="STRONGEST_ALLY">Strongest Ally</option>
-                          <option value="STRONGEST_ENEMY">Strongest Enemy</option>
-                          <option value="SLOT_1">Slot 1 (Absolute L)</option>
-                          <option value="SLOT_5">Slot 5 (Absolute R)</option>
-                        </select>
+                      
+                      {/* Target Selector & Optional Target Parameter */}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">ON (Target)</label>
+                          <select
+                            value={block.target}
+                            onChange={(e) => updateBlockField(idx, 'target', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
+                          >
+                            <option value="SELF">Self (Caster)</option>
+                            <option value="ADJACENT_ALLIES">Adjacent Allies</option>
+                            <option value="ALL_ALLIES">All Allies</option>
+                            <option value="ALL_ALLIES_EXCEPT">All Allies Except (By ID)</option>
+                            <option value="ALL_ENEMIES">All Enemies</option>
+                            <option value="RANDOM_OPPONENT">Random Opponent</option>
+                            <option value="WEAKEST_ALLY">Weakest Ally</option>
+                            <option value="WEAKEST_ENEMY">Weakest Enemy</option>
+                            <option value="STRONGEST_ALLY">Strongest Ally</option>
+                            <option value="STRONGEST_ENEMY">Strongest Enemy</option>
+                            <option value="SLOT_1">Slot 1 (Absolute L)</option>
+                            <option value="SLOT_2">Slot 2</option>
+                            <option value="SLOT_3">Slot 3 (Middle)</option>
+                            <option value="SLOT_4">Slot 4</option>
+                            <option value="SLOT_5">Slot 5 (Absolute R)</option>
+                          </select>
+                        </div>
+                        
+                        {/* Dedicated Target Parameter input field */}
+                        {block.target === 'ALL_ALLIES_EXCEPT' && (
+                          <div className="w-20">
+                            <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Except ID</label>
+                            <input
+                              type="text"
+                              value={block.target_param || ''}
+                              onChange={(e) => updateBlockField(idx, 'target_param', e.target.value)}
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
+                              placeholder="ID"
+                            />
+                          </div>
+                        )}
                       </div>
+
                       <div>
                         <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">CHANCE (%)</label>
                         <input
@@ -452,7 +478,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                             next[idx].chance = e.target.value;
                             setBlocks(next);
                           }}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
                           placeholder="e.g. 100"
                         />
                       </div>
@@ -486,10 +512,13 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           >
                             <option value="NONE">Always True (No Condition)</option>
                             <option value="IF_TEAM_HAS">Team Has Character ID</option>
+                            <option value="IF_TEAM_HAS_SKILL">Team Has Skill Name</option>
                             <option value="IF_POSITION_BETWEEN">Positioned Between IDs</option>
                             <option value="IF_POSITION_ADJACENT_TO">Adjacent to Character ID</option>
                             <option value="IF_POSITION_NOT_ADJACENT_TO">Not Adjacent to Character ID</option>
                             <option value="IF_SELF_SUPPRESSED">If Self is Silenced</option>
+                            <option value="IF_RESULT_IS">If Battle Result is (LOSS/WIN)</option>
+                            <option value="IF_FLAG_ACTIVE">If Global State Flag is True</option>
                           </select>
 
                           {cond.type !== 'NONE' && (
@@ -529,6 +558,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="ELIMINATE_UNIT">Eliminate / Kill Unit (Kamikaze)</option>
                           <option value="FORCE_BATTLE_RESULT">Force Battle Result (Revive)</option>
                           <option value="REGISTER_POST_PHASE">Register Post-Phase Action (Zodiac)</option>
+                          <option value="CLEANSE_SUPPRESSIONS">Cleanse / Purge Suppressions</option>
                           <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier</option>
                           <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
                           <option value="REWARD_MULTIPLIER">Global Reward Multiplier</option>
@@ -595,7 +625,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                               type="text"
                               value={block.value}
                               onChange={(e) => updateBlockField(idx, 'value', e.target.value)}
-                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
                               placeholder="e.g. 1.50, dead_allies_count"
                             />
                           </div>
@@ -606,7 +636,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                               type="text"
                               value={block.log}
                               onChange={(e) => updateBlockField(idx, 'log', e.target.value)}
-                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-neutral-300"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-neutral-300"
                               placeholder="e.g. {caster} went Berserk (+50% Power)!"
                             />
                           </div>
