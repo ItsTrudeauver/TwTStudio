@@ -1,4 +1,3 @@
-// components/SkillCompiler.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,9 +26,10 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     { 
       trigger: 'ON_POWER_CALC', 
       target: 'SELF', 
+      target_param: '',
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.75', log: '' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
       action_type: 'MULTIPLY_POWER', 
       value: '1.25', 
       log: '{caster} entered Surge!' 
@@ -47,6 +47,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks([...blocks, { 
       trigger: 'ON_POWER_CALC', 
       target: 'SELF', 
+      target_param: '',
       chance: '100', 
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
       branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
@@ -66,7 +67,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -85,7 +85,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setBlocks(updated);
   };
 
-  // --- NESTED BRANCHING STATE HELPERS ---
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
@@ -137,7 +136,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       unsuppressable,
       blocks: blocks.map(b => ({
         trigger: b.trigger,
-        target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.condition_param_a}` : b.target,
+        target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
         chance: Number(b.chance),
         action_type: b.action_type,
         value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
@@ -187,7 +186,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       unsuppressable,
       blocks: blocks.map(b => ({
         trigger: b.trigger,
-        target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.condition_param_a}` : b.target,
+        target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
         chance: Number(b.chance),
         action_type: b.action_type,
         value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
@@ -219,9 +218,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
     
-    // Replace the formattedBlocks declaration inside handleLoadPreset (components/SkillCompiler.tsx):
     const formattedBlocks = preset.blocks.map((b: any) => {
-      // Check if target is a selective exception (e.g. ALL_ALLIES_EXCEPT_111)
       const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
       const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
       const exceptId = isExcept ? b.target.split('_').pop() : '';
@@ -229,6 +226,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       return {
         trigger: b.trigger,
         target: baseTarget,
+        target_param: exceptId,
         chance: String(b.chance || 100),
         action_type: b.action_type,
         value: b.value,
@@ -237,11 +235,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           type: c.type,
           param: c.param,
           connector: c.connector || 'AND'
-        })) : [{ 
-          type: 'NONE', 
-          param: isExcept ? exceptId : '', // Auto-pre-fills Guts' ID into the condition parameter box!
-          connector: 'AND' 
-        }],
+        })) : [{ type: 'NONE', param: '', connector: 'AND' }],
         branches: b.branches ? b.branches.map((branch: any) => ({
           chance: String(branch.chance || 50),
           target: branch.target || 'INHERIT',
@@ -433,10 +427,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           onChange={(e) => updateBlockField(idx, 'target', e.target.value)}
                           className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
                         >
-                          <option value="SELF">Self (Caster)</option>
+                          <option value="SELF">Self</option>
                           <option value="ADJACENT_ALLIES">Adjacent Allies</option>
                           <option value="ALL_ALLIES">All Allies</option>
-                          <option value="ALL_ALLIES_EXCEPT">All Allies Except (By ID)</option>
                           <option value="ALL_ENEMIES">All Enemies</option>
                           <option value="RANDOM_OPPONENT">Random Opponent</option>
                           <option value="WEAKEST_ALLY">Weakest Ally</option>
@@ -444,9 +437,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="STRONGEST_ALLY">Strongest Ally</option>
                           <option value="STRONGEST_ENEMY">Strongest Enemy</option>
                           <option value="SLOT_1">Slot 1 (Absolute L)</option>
-                          <option value="SLOT_2">Slot 2</option>
-                          <option value="SLOT_3">Slot 3 (Middle)</option>
-                          <option value="SLOT_4">Slot 4</option>
                           <option value="SLOT_5">Slot 5 (Absolute R)</option>
                         </select>
                       </div>
@@ -490,20 +480,17 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <span className="text-neutral-500 font-bold text-[10px]">{condIdx === 0 ? 'IF' : ''}</span>
                           
                           <select
-                                  value={cond.type}
-                                  onChange={(e) => updateConditionField(idx, condIdx, 'type', e.target.value)}
-                                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-white text-[10px] flex-1 min-w-[130px]"
-                                >
-                                  <option value="NONE">Always True (No Condition)</option>
-                                  <option value="IF_TEAM_HAS">Team Has Character ID</option>
-                                  <option value="IF_TEAM_HAS_SKILL">Team Has Skill Name</option>
-                                  <option value="IF_POSITION_BETWEEN">Positioned Between IDs</option>
-                                  <option value="IF_POSITION_ADJACENT_TO">Adjacent to Character ID</option>
-                                  <option value="IF_POSITION_NOT_ADJACENT_TO">Not Adjacent to Character ID</option>
-                                  <option value="IF_SELF_SUPPRESSED">If Self is Silenced</option>
-                                  <option value="IF_RESULT_IS">If Battle Result is (LOSS/WIN)</option>
-                                  <option value="IF_FLAG_ACTIVE">If Global State Flag is True</option>
-                                </select>
+                            value={cond.type}
+                            onChange={(e) => updateConditionField(idx, condIdx, 'type', e.target.value)}
+                            className="bg-neutral-950 border border-neutral-800 rounded p-1 text-white text-[10px] flex-1 min-w-[130px]"
+                          >
+                            <option value="NONE">Always True (No Condition)</option>
+                            <option value="IF_TEAM_HAS">Team Has Character ID</option>
+                            <option value="IF_POSITION_BETWEEN">Positioned Between IDs</option>
+                            <option value="IF_POSITION_ADJACENT_TO">Adjacent to Character ID</option>
+                            <option value="IF_POSITION_NOT_ADJACENT_TO">Not Adjacent to Character ID</option>
+                            <option value="IF_SELF_SUPPRESSED">If Self is Silenced</option>
+                          </select>
 
                           {cond.type !== 'NONE' && (
                             <input
