@@ -15,103 +15,133 @@ export default function BannerManager({ roster }: BannerManagerProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  // Search-as-you-type filter state for custom units
+  const [searchQuery, setSearchQuery] = useState('');
+
   useEffect(() => {
     fetchBanners();
   }, []);
 
   const fetchBanners = async () => {
-    const { data } = await supabase.from('banners').select('*').order('id', { ascending: false });
-    if (data) setBorders(data);
+    const { data, error } = await supabase
+      .from('banners')
+      .select('*')
+      .order('id', { ascending: false }); // Show newest first
+    if (!error && data) setBorders(data);
   };
 
-  const handleCreateBanner = async (e: React.FormEvent) => {
+  const handleSaveBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedIds.length === 0) {
-      alert('Please select at least one rate-up unit.');
+      alert("❌ Please select at least one rate-up character for this banner!");
       return;
     }
     if (!endTime) {
-      alert('Please select an end timestamp.');
+      alert("❌ Please select a banner expiry date/time!");
       return;
     }
 
     setSubmitting(true);
-    const endUnix = Math.floor(new Date(endTime).getTime() / 1000);
-
     try {
-      // Deactivate all previous active banners
+      const endUnix = Math.floor(new Date(endTime).getTime() / 1000);
+
+      // Deactivate older banners
       await supabase.from('banners').update({ is_active: false }).eq('is_active', true);
 
-      // Create new banner
-      const { error } = await supabase.from('banners').insert({
-        name,
-        rate_up_ids: selectedIds,
-        rate_up_chance: Number(rateUpChance),
-        spark_pity: Number(pity),
-        is_active: true,
-        end_timestamp: endUnix
-      });
+      // Insert new banner
+      const { error } = await supabase
+        .from('banners')
+        .insert({
+          name,
+          rate_up_ids: selectedIds,
+          rate_up_chance: Number(rateUpChance),
+          spark_pity: Number(pity),
+          is_active: true,
+          end_timestamp: endUnix
+        });
 
       if (error) throw error;
-      alert(`📅 Banner "${name}" successfully created and scheduled!`);
+
+      alert(`🎉 Successfully Created Event Banner: ${name}!`);
       setName('');
       setSelectedIds([]);
+      setEndTime('');
       fetchBanners();
     } catch (err: any) {
-      alert(err.message);
+      alert(`Failed to create banner: ${err.message}`);
     }
     setSubmitting(false);
   };
 
-  const handleToggleSelect = (id: number) => {
+  const handleToggleSelection = (id: number) => {
     if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(x => x !== id));
+      setSelectedIds(selectedIds.filter(item => item !== id));
     } else {
       setSelectedIds([...selectedIds, id]);
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-140px)] overflow-y-auto">
-      {/* Create Banner Form */}
-      <div className="bg-neutral-900 p-6 border border-neutral-800 rounded-lg">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-180px)] overflow-y-auto">
+      {/* Create Banner Form (Spans 5 Columns) */}
+      <div className="lg:col-span-5 bg-neutral-900 p-6 border border-neutral-800 rounded-lg">
         <h3 className="text-md font-bold mb-4">📅 Create Banner Event</h3>
-        <form onSubmit={handleCreateBanner} className="space-y-4">
+        <form onSubmit={handleSaveBanner} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Banner Name</label>
-            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white" placeholder="Winter Holiday" />
+            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none" placeholder="Winter Holiday" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Spark Pity</label>
-              <input type="number" required value={pity} onChange={(e) => setPity(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white" />
+              <input type="number" required value={pity} onChange={(e) => setPity(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Rate-up Chance (0.1 - 1.0)</label>
-              <input type="number" step="0.1" required value={rateUpChance} onChange={(e) => setRateUpChance(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white" />
+              <input type="number" step="0.1" required value={rateUpChance} onChange={(e) => setRateUpChance(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Expiration End-Time (UTC)</label>
-            <input type="datetime-local" required value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white" />
+            <input type="datetime-local" required value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none" />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Select Rate-up Units</label>
-            <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-neutral-950 border border-neutral-800 rounded">
-              {roster.map(char => (
-                <button
-                  key={char.id}
-                  type="button"
-                  onClick={() => handleToggleSelect(char.id)}
-                  className={`flex items-center justify-between p-1.5 rounded text-left text-xs transition-all border ${selectedIds.includes(char.id) ? 'bg-emerald-950/40 border-emerald-800 text-white' : 'bg-transparent border-transparent text-neutral-400 hover:bg-neutral-900'}`}
-                >
-                  <span>{char.name} ({char.rarity})</span>
-                  {selectedIds.includes(char.id) && <span className="text-emerald-400 font-bold">✓</span>}
-                </button>
-              ))}
+          {/* Searchable Custom Units Selector */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider">Select Rate-up Units</label>
+              <span className="text-[10px] text-neutral-500">{selectedIds.length} Selected</span>
+            </div>
+
+            {/* Custom search bar */}
+            <input
+              type="text"
+              placeholder="🔍 Filter custom units by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700"
+            />
+
+            <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-2 bg-neutral-950 border border-neutral-800 rounded">
+              {roster
+                .filter(char => char.id > 100) // Restricts list STRICTLY to custom/rebalanced units (IDs > 100)
+                .filter(char => char.name.toLowerCase().includes(searchQuery.toLowerCase())) // Search filter
+                .map(char => (
+                  <button
+                    key={char.id}
+                    type="button"
+                    onClick={() => handleToggleSelection(char.id)}
+                    className={`flex items-center justify-between p-2 rounded text-left text-xs transition-all border ${selectedIds.includes(char.id) ? 'bg-emerald-950/40 border-emerald-800 text-white' : 'bg-transparent border-transparent text-neutral-400 hover:bg-neutral-900'}`}
+                  >
+                    <span>{char.name} ({char.rarity}) [ID {char.id}]</span>
+                    {selectedIds.includes(char.id) && <span className="text-emerald-400 font-bold">✓</span>}
+                  </button>
+                ))}
+              {roster.filter(char => char.id > 100).length === 0 && (
+                <p className="text-xs text-neutral-500 italic p-2 text-center">No custom units (IDs &gt; 100) found in database.</p>
+              )}
             </div>
           </div>
 
@@ -121,8 +151,8 @@ export default function BannerManager({ roster }: BannerManagerProps) {
         </form>
       </div>
 
-      {/* Active Banners History List */}
-      <div className="bg-neutral-900 p-6 border border-neutral-800 rounded-lg flex flex-col">
+      {/* Scheduled Timeline Panel (Spans 7 Columns) */}
+      <div className="lg:col-span-7 bg-neutral-900 p-6 border border-neutral-800 rounded-lg flex flex-col h-full">
         <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Scheduled Banner Timeline</h3>
         <div className="space-y-3 flex-1 overflow-y-auto">
           {banners.map((b) => {
@@ -141,6 +171,9 @@ export default function BannerManager({ roster }: BannerManagerProps) {
               </div>
             );
           })}
+          {banners.length === 0 && (
+            <p className="text-xs text-neutral-500 italic p-4 text-center">No banners currently scheduled.</p>
+          )}
         </div>
       </div>
     </div>
