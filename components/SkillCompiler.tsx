@@ -13,7 +13,7 @@ interface SkillCompilerProps {
 
 export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRoster, roster }: SkillCompilerProps) {
   const [skillName, setSkillName] = useState('');
-  const [description, setDescription] = useState(''); // <--- ADDED STATE
+  const [description, setDescription] = useState('');
   const [appliesIn, setAppliesIn] = useState<'combat' | 'expedition' | 'global'>('combat');
   const [priority, setPriority] = useState(10);
   const [unsuppressable, setUnsuppressable] = useState(false);
@@ -135,7 +135,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
     const compiledSkill = {
       skill_name: skillName,
-      description: description.trim(), // <--- SAVES PLAIN DESCRIPTION
+      description: description.trim(),
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
@@ -176,7 +176,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
       fetchRoster();
       setSkillName('');
-      setDescription(''); // <--- CLEARS STATE
+      setDescription('');
     }
   };
 
@@ -187,7 +187,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     }
     const compiledSkill = {
       skill_name: skillName,
-      description: description.trim(), // <--- PRESETS SUPPORT
+      description: description.trim(),
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
@@ -221,7 +221,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
   const handleLoadPreset = (preset: any) => {
     setSkillName(preset.skill_name);
-    setDescription(preset.description || ''); // <--- LOADS PLAIN DESCRIPTION
+    setDescription(preset.description || '');
     setAppliesIn(preset.applies_in);
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
@@ -461,6 +461,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                             <option value="WEAKEST_ENEMY">Weakest Enemy</option>
                             <option value="STRONGEST_ALLY">Strongest Ally</option>
                             <option value="STRONGEST_ENEMY">Strongest Enemy</option>
+                            <option value="OPPOSING_INDEX">Opposing Index (Mind-read)</option>
+                            <option value="LOWEST_HP_PERCENT_ALLY">Lowest HP % Ally (Heal)</option>
+                            <option value="FRONT_MOST_ALLY">Front-most Ally (Raid Tank)</option>
                             <option value="SLOT_1">Slot 1 (Absolute L)</option>
                             <option value="SLOT_2">Slot 2</option>
                             <option value="SLOT_3">Slot 3 (Middle)</option>
@@ -567,6 +570,11 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                         >
                           <option value="MULTIPLY_POWER">Multiply Power (Dynamic/Formula)</option>
                           <option value="ADD_FLAT_POWER">Add Flat Power (Formula)</option>
+                          <option value="HEAL_ALLY">Heal Ally (Lost/Max HP Scaling)</option>
+                          <option value="MULTIPLY_HP">Multiply HP (Raid Stat Scaling)</option>
+                          <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield (Barrier)</option>
+                          <option value="REINFORCE_STRUCK_SHIELD">Reinforce Struck Shield</option>
+                          <option value="SET_BASE_POWER">Set Base Power (Anya Mind-read)</option>
                           <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
                           <option value="FORCE_VARIANCE">Force Variance (Float value)</option>
                           <option value="HARVEST_VARIANCE_DELTA">Harvest Variance Delta</option>
@@ -620,6 +628,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                                   <select value={branch.action_type} onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
                                     <option value="MULTIPLY_POWER">Multiply Power</option>
                                     <option value="ADD_FLAT_POWER">Add Flat Power</option>
+                                    <option value="FORCE_VARIANCE">Force Variance</option>
+                                    <option value="REGISTER_POST_PHASE">Register Post-Phase Action</option>
+                                    <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
                                   </select>
                                 </div>
                                 <div>
@@ -644,7 +655,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                               value={block.value}
                               onChange={(e) => updateBlockField(idx, 'value', e.target.value)}
                               className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
-                              placeholder="e.g. 1.50, dead_allies_count"
+                              placeholder="e.g. 1.50, dead_allies_count, target_lost_hp, own_max_hp"
                             />
                           </div>
 
