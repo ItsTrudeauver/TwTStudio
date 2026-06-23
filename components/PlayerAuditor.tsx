@@ -56,7 +56,8 @@ export default function PlayerAuditor() {
     setUsernameCache(prev => ({ ...prev, [uid]: 'Resolving...' }));
 
     try {
-      const res = await fetch(`https://discordlookup.mesavanz.to/v1/user/${uid}`);
+      // Query our secure, server-side Next.js proxy route
+      const res = await fetch(`/api/discord/${uid}`);
       if (res.ok) {
         const data = await res.json();
         const name = data.global_name || data.username || uid;
@@ -68,7 +69,7 @@ export default function PlayerAuditor() {
       setUsernameCache(prev => ({ ...prev, [uid]: `User: ${uid.slice(-6)}` }));
     }
   };
-
+  
   const fetchInventory = async (uid: string) => {
     const { data } = await supabase
       .from('inventory')
