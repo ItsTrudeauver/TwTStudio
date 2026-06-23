@@ -1,12 +1,13 @@
 // app/api/discord/[uid]/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { uid: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ uid: string }> } // Type params as a Promise for Next.js 15+
 ) {
-  const { uid } = params;
-  const token = process.env.DISCORD_TOKEN; // Fetches securely from your server env
+  // Await the asynchronous params object
+  const { uid } = await params; 
+  const token = process.env.DISCORD_TOKEN;
 
   if (!token) {
     // If Bot Token is missing, fallback gracefully to a public proxy endpoint
