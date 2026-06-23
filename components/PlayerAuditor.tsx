@@ -1,36 +1,73 @@
 // components/PlayerAuditor.tsx
+'use client';
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 export default function PlayerAuditor() {
-  const [userId, setUserId] = useState('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [player, setPlayer] = useState<any>(null);
   const [inventory, setInventory] = useState<any[]>([]);
   const [roster, setRoster] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Edit fields state
+  // Lazy-loaded cache of resolved Discord snowflake usernames
+  const [usernameCache, setUsernameCache] = useState<Record<string, string>>({});
+
+  // Wallet stats states
   const [gems, setGems] = useState(0);
   const [coins, setCoins] = useState(0);
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [updating, setUpdating] = useState(false);
 
-  // Gifting state
-  const [giftCardId, setGiftCardId] = useState<number | ''>('');
+  // Autocomplete gifting states
+  const [selectedGiftChar, setSelectedGiftChar] = useState<any>(null);
+  const [giftSearchTerm, setGiftSearchTerm] = useState('');
+  const [giftDropdownOpen, setGiftDropdownOpen] = useState(false);
   const [giftDupes, setGiftDupes] = useState(0);
   const [gifting, setGifting] = useState(false);
 
-  // Fetch roster on load for the gifting dropdown list
   useEffect(() => {
-    supabase
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    // 1. Fetch roster for autocomplete dropdown
+    const { data: rosterData } = await supabase
       .from('characters_cache')
       .select('id, name, rarity')
-      .order('id', { ascending: true })
-      .then(({ data }) => {
-        if (data) setRoster(data);
-      });
-  }, []);
+      .order('id', { ascending: true });
+    if (rosterData) setRoster(rosterData);
+
+    // 2. Fetch all registered players
+    const { data: userData } = await supabase
+      .from('users')
+      .select('user_id');
+    if (userData) setAllUsers(userData);
+  };
+
+  // Lazily resolves Discord Snowflake ID to username
+  const resolveUsername = async (uid: string) => {
+    if (usernameCache[uid] || !uid) return;
+    
+    // Optimistically set to loading state
+    setUsernameCache(prev => ({ ...prev, [uid]: 'Resolving...' }));
+
+    try {
+      const res = await fetch(`https://discordlookup.mesavanz.to/v1/user/${uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        const name = data.global_name || data.username || uid;
+        setUsernameCache(prev => ({ ...prev, [uid]: name }));
+      } else {
+        setUsernameCache(prev => ({ ...prev, [uid]: `User: ${uid.slice(-6)}` }));
+      }
+    } catch {
+      setUsernameCache(prev => ({ ...prev, [uid]: `User: ${uid.slice(-6)}` }));
+    }
+  };
 
   const fetchInventory = async (uid: string) => {
     const { data } = await supabase
@@ -42,13 +79,10 @@ export default function PlayerAuditor() {
         characters_cache ( name, rarity )
       `)
       .eq('user_id', uid);
-    if (data) setInventory(data);
+    if (data) setInventory(data || []);
   };
 
-  const handleSearchPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId.trim()) return;
-
+  const selectPlayer = async (uid: string) => {
     setLoading(true);
     setPlayer(null);
     setInventory([]);
@@ -57,11 +91,11 @@ export default function PlayerAuditor() {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('user_id', userId.trim())
+        .eq('user_id', uid)
         .single();
 
       if (error || !data) {
-        throw new Error('Player not found in database.');
+        throw new Error('Player profile missing.');
       }
 
       setPlayer(data);
@@ -71,32 +105,23 @@ export default function PlayerAuditor() {
       setXp(data.team_xp || 0);
       await fetchInventory(data.user_id);
     } catch (err: any) {
-      // Offer registration option on fail
-      if (confirm(`🤷 Player ${userId.trim()} not found in the users table. Would you like to initialize/register their profile now?`)) {
-        await handleRegisterPlayer(userId.trim());
-      }
+      alert(`Error loading player details: ${err.message}`);
     }
     setLoading(false);
   };
 
   const handleRegisterPlayer = async (uid: string) => {
+    if (!uid.trim()) return;
     try {
       const { error } = await supabase
         .from('users')
-        .insert({ user_id: uid, gacha_gems: 5000, coins: 100 });
+        .insert({ user_id: uid.trim(), gacha_gems: 5000, coins: 100 });
 
       if (error) throw error;
-      alert(`🎉 Player ${uid} successfully registered!`);
-      setUserId(uid);
-      // Trigger search again
-      const { data } = await supabase.from('users').select('*').eq('user_id', uid).single();
-      if (data) {
-        setPlayer(data);
-        setGems(5000);
-        setCoins(100);
-        setLevel(1);
-        setXp(0);
-      }
+      alert(`🎉 Player ${uid.trim()} successfully registered!`);
+      setSearchQuery('');
+      await fetchInitialData();
+      await selectPlayer(uid.trim());
     } catch (err: any) {
       alert(`Failed to register player: ${err.message}`);
     }
@@ -119,7 +144,7 @@ export default function PlayerAuditor() {
         .eq('user_id', player.user_id);
 
       if (error) throw error;
-      alert(`💰 Successfully updated wallet for player ${player.user_id}!`);
+      alert(`💰 Successfully updated wallet for player: ${player.user_id}`);
       setPlayer({ ...player, gacha_gems: gems, coins, team_level: level, team_xp: xp });
     } catch (err: any) {
       alert(err.message);
@@ -129,7 +154,7 @@ export default function PlayerAuditor() {
 
   const handleGiftCharacter = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!player || !giftCardId) return;
+    if (!player || !selectedGiftChar) return;
 
     setGifting(true);
     try {
@@ -137,18 +162,17 @@ export default function PlayerAuditor() {
         .from('inventory')
         .insert({
           user_id: player.user_id,
-          card_id: Number(giftCardId),
+          card_id: Number(selectedGiftChar.id),
           dupe_level: Number(giftDupes)
         });
 
       if (error) {
-        // If they already own it, offer to update dupe instead
         if (error.message.includes('unique_user_character')) {
           const { error: updateError } = await supabase
             .from('inventory')
             .update({ dupe_level: Number(giftDupes) })
             .eq('user_id', player.user_id)
-            .eq('card_id', Number(giftCardId));
+            .eq('card_id', Number(selectedGiftChar.id));
           if (updateError) throw updateError;
           alert('📝 Updated dupe level on existing card!');
         } else {
@@ -158,7 +182,8 @@ export default function PlayerAuditor() {
         alert('🎁 Successfully added card to player inventory!');
       }
 
-      setGiftCardId('');
+      setSelectedGiftChar(null);
+      setGiftSearchTerm('');
       fetchInventory(player.user_id);
     } catch (err: any) {
       alert(`Failed to grant unit: ${err.message}`);
@@ -166,36 +191,78 @@ export default function PlayerAuditor() {
     setGifting(false);
   };
 
+  // Filters the list of users based on search query (by either Snowflake ID or resolved Username)
+  const filteredUsers = allUsers.filter(u => {
+    const resolvedName = usernameCache[u.user_id] || '';
+    return u.user_id.includes(searchQuery) || resolvedName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-140px)] overflow-y-auto">
-      {/* Left Search and Wallet Stats */}
-      <div className="lg:col-span-2 bg-neutral-900 p-6 border border-neutral-800 rounded-lg space-y-4">
-        <h3 className="text-md font-bold mb-4">🔍 Search Player ID</h3>
-        <form onSubmit={handleSearchPlayer} className="flex gap-2 mb-4">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-140px)]">
+      {/* Left Column: Player Search & Directory */}
+      <div className="lg:col-span-2 bg-neutral-900 p-6 border border-neutral-800 rounded-lg flex flex-col h-full overflow-hidden">
+        <h3 className="text-md font-bold mb-3">🔍 Player Auditor Console</h3>
+        
+        {/* Search Field */}
+        <div className="flex gap-2 mb-4">
           <input
             type="text"
-            required
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="flex-1 bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none"
-            placeholder="e.g. 1463071276036788392"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700"
+            placeholder="Search by Discord ID or Username..."
           />
-          <button type="submit" disabled={loading} className="bg-neutral-100 hover:bg-white text-neutral-900 px-4 rounded text-xs font-bold transition-all">
-            Audit
-          </button>
-        </form>
+          {searchQuery.trim().length >= 15 && !allUsers.some(u => u.user_id === searchQuery.trim()) && (
+            <button
+              type="button"
+              onClick={() => handleRegisterPlayer(searchQuery)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 rounded text-xs font-bold transition-all"
+            >
+              + Register
+            </button>
+          )}
+        </div>
 
-        {player ? (
-          <div className="space-y-4">
+        {/* Directory List of Players */}
+        <div className="flex-1 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded p-2 mb-4 space-y-1">
+          {filteredUsers.map((u) => {
+            // Lazy load username as the player row is displayed
+            if (!usernameCache[u.user_id]) {
+              resolveUsername(u.user_id);
+            }
+
+            const isSelected = player?.user_id === u.user_id;
+
+            return (
+              <button
+                key={u.user_id}
+                onClick={() => selectPlayer(u.user_id)}
+                className={`w-full flex items-center justify-between p-2 rounded text-left text-xs transition-all border ${isSelected ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-transparent border-transparent text-neutral-400 hover:bg-neutral-900/60'}`}
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold text-neutral-300">{usernameCache[u.user_id] || 'Resolving...'}</span>
+                  <span className="text-[10px] text-neutral-500 font-mono mt-0.5">{u.user_id}</span>
+                </div>
+                <span className="text-[10px] text-neutral-500">Audit →</span>
+              </button>
+            );
+          })}
+          {filteredUsers.length === 0 && (
+            <p className="text-xs text-neutral-500 italic p-4 text-center">No registered players match your search filter.</p>
+          )}
+        </div>
+
+        {/* Selected Player Wallet Panel */}
+        {player && (
+          <div className="border-t border-neutral-800/60 pt-4 space-y-4">
             <div className="bg-neutral-950 p-3 rounded border border-neutral-800/60 space-y-1.5 text-xs">
-              <div className="flex justify-between"><span>User ID:</span> <span className="font-mono text-neutral-400 select-all">{player.user_id}</span></div>
+              <div className="flex justify-between"><span>User:</span> <span className="font-semibold text-neutral-300">{usernameCache[player.user_id] || 'Resolving...'}</span></div>
               <div className="flex justify-between"><span>Gems Balance:</span> <span className="font-bold text-yellow-400">{player.gacha_gems?.toLocaleString()}</span></div>
               <div className="flex justify-between"><span>Coins Balance:</span> <span className="font-bold text-emerald-400">{player.coins?.toLocaleString()}</span></div>
               <div className="flex justify-between"><span>Team Level:</span> <span className="font-bold text-white">{player.team_level}</span></div>
             </div>
 
-            <form onSubmit={handleUpdateResources} className="space-y-3 pt-4 border-t border-neutral-800/40">
-              <h4 className="text-[10px] uppercase font-bold text-neutral-500">Update Wallet & Levels</h4>
+            <form onSubmit={handleUpdateResources} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Gems</label>
@@ -217,20 +284,18 @@ export default function PlayerAuditor() {
                 </div>
               </div>
               <button type="submit" disabled={updating} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all shadow">
-                Commit Currency Updates
+                {updating ? 'Updating...' : 'Commit Currency Updates'}
               </button>
             </form>
           </div>
-        ) : (
-          <p className="text-xs text-neutral-500 italic">No player selected. Search or register above.</p>
         )}
       </div>
 
-      {/* Middle/Right: Inventory & Gifting Console */}
-      <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-140px)]">
+      {/* Middle/Right Columns: Inventory List & Gifting Console */}
+      <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-hidden">
         
         {/* Inventory Viewer */}
-        <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex flex-col">
+        <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex flex-col h-full overflow-hidden">
           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Player Inventory</h3>
           <div className="space-y-1.5 flex-1 overflow-y-auto">
             {inventory.length > 0 ? (
@@ -244,29 +309,56 @@ export default function PlayerAuditor() {
                 </div>
               ))
             ) : (
-              <p className="text-xs text-neutral-500 italic">Inventory is empty or no player audited.</p>
+              <p className="text-xs text-neutral-500 italic">Inventory is empty or no player selected.</p>
             )}
           </div>
         </div>
 
-        {/* Gift Card Console */}
-        <div className="bg-neutral-900 p-5 border border-neutral-800 rounded-lg">
+        {/* Gift Card Console (Gifting search dropdown) */}
+        <div className="bg-neutral-900 p-5 border border-neutral-800 rounded-lg h-full overflow-y-auto">
           <h3 className="text-sm font-bold mb-4">🎁 Award Unit to Player</h3>
           {player ? (
             <form onSubmit={handleGiftCharacter} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Select Card</label>
-                <select
-                  required
-                  value={giftCardId}
-                  onChange={(e) => setGiftCardId(Number(e.target.value) || '')}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white"
-                >
-                  <option value="">Select a character...</option>
-                  {roster.map(char => (
-                    <option key={char.id} value={char.id}>{char.name} ({char.rarity}) [ID {char.id}]</option>
-                  ))}
-                </select>
+              {/* Typable search input for gifting characters */}
+              <div className="relative">
+                <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Search & Select Card</label>
+                <input
+                  type="text"
+                  placeholder="🔍 Search character name..."
+                  value={giftDropdownOpen ? giftSearchTerm : (selectedGiftChar ? `${selectedGiftChar.name} (${selectedGiftChar.rarity})` : '')}
+                  onChange={(e) => {
+                    setGiftSearchTerm(e.target.value);
+                    setGiftDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    setGiftSearchTerm('');
+                    setGiftDropdownOpen(true);
+                  }}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700"
+                />
+                {giftDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded shadow-2xl z-50">
+                    {roster
+                      .filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase()))
+                      .map(char => (
+                        <button
+                          key={char.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGiftChar(char);
+                            setGiftSearchTerm(`${char.name} (${char.rarity})`);
+                            setGiftDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-neutral-800 text-xs text-neutral-300 border-b border-neutral-800/40 last:border-0"
+                        >
+                          {char.name} ({char.rarity}) [ID {char.id}]
+                        </button>
+                      ))}
+                    {roster.filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase())).length === 0 && (
+                      <p className="text-xs text-neutral-500 italic p-3 text-center">No matching cards found.</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -274,19 +366,23 @@ export default function PlayerAuditor() {
                 <input
                   type="number"
                   min="0"
-                  max="100"
+                  max="10"
                   value={giftDupes}
                   onChange={(e) => setGiftDupes(Number(e.target.value))}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none"
                 />
               </div>
 
-              <button type="submit" disabled={gifting} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all shadow">
+              <button
+                type="submit"
+                disabled={gifting || !selectedGiftChar}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all shadow disabled:opacity-50"
+              >
                 {gifting ? 'Granting...' : 'Grant Character to Player'}
               </button>
             </form>
           ) : (
-            <p className="text-xs text-neutral-500 italic">Inspect a player first to award characters.</p>
+            <p className="text-xs text-neutral-500 italic">Audit a player in the directory first to grant character assets.</p>
           )}
         </div>
       </div>
