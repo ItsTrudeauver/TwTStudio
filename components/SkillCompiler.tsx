@@ -1,4 +1,4 @@
-// components/SkillCompiler.tsx
+/// components/SkillCompiler.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,13 +11,116 @@ interface SkillCompilerProps {
   roster: any[];
 }
 
+// Global registry of standard dynamic and static combat tags
+const STANDARD_TAGS = [
+  'Gamble', 'Gamble_Succeed', 'Gamble_Fail', 'Buff', 'Debuff', 
+  'Synergy', 'Sacrifice', 'Disabler', 'Responsive', 'Sustain', 
+  'Heal', 'Shield', 'Direct_Damage', 'HP_Multiplier', 'Rule_Lock', 
+  'Yield_Multiplier', 'Death_Instance', 'Silence'
+];
+
+interface TagSelectorProps {
+  tags: string[];
+  onChange: (newTags: string[]) => void;
+  placeholder?: string;
+}
+
+/// Self-contained multi-select tag controller with autocomplete and creation support
+// Self-contained multi-select tag controller with autocomplete and creation support
+function TagSelector({ tags, onChange, placeholder = "Select tags..." }: TagSelectorProps) {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Dynamic typecast to bypass strict compile-time narrowing constraints
+  const rawTags = tags as any;
+  const sanitizedTags: string[] = Array.isArray(rawTags)
+    ? rawTags
+    : (typeof rawTags === 'string' && rawTags.trim() !== ''
+        ? rawTags.split(',').map((t: string) => t.trim()).filter(Boolean)
+        : []);
+
+  const filtered = STANDARD_TAGS.filter((t: string) => 
+    t.toLowerCase().includes(query.toLowerCase()) && !sanitizedTags.includes(t)
+  );
+
+  const addTag = (tag: string) => {
+    if (!sanitizedTags.includes(tag)) {
+      onChange([...sanitizedTags, tag]);
+    }
+    setQuery('');
+    setIsOpen(false);
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    onChange(sanitizedTags.filter((t: string) => t !== tagToRemove));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && query.trim()) {
+      e.preventDefault();
+      addTag(query.trim());
+    }
+  };
+
+  return (
+    <div className="relative w-full">
+      <div className="flex flex-wrap gap-1 bg-neutral-900 border border-neutral-800 rounded p-1.5 min-h-[38px] items-center focus-within:border-neutral-700">
+        {sanitizedTags.map((t: string) => (
+          <span key={t} className="flex items-center gap-1 bg-neutral-800 text-neutral-200 text-[10px] font-bold px-2 py-0.5 rounded border border-neutral-700">
+            {t}
+            <button type="button" onClick={() => removeTag(t)} className="text-red-400 hover:text-red-350 font-bold ml-0.5">✕</button>
+          </span>
+        ))}
+        <input
+          type="text"
+          placeholder={tags.length === 0 ? placeholder : ''}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent text-xs text-white outline-none placeholder-neutral-500 min-w-[60px]"
+        />
+      </div>
+      {isOpen && (query || filtered.length > 0) && (
+        <div className="absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded shadow-2xl z-50">
+          {filtered.map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => addTag(t)}
+              className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300 transition-colors"
+            >
+              {t}
+            </button>
+          ))}
+          {query.trim() && !STANDARD_TAGS.includes(query.trim()) && !tags.includes(query.trim()) && (
+            <button
+              type="button"
+              onClick={() => addTag(query.trim())}
+              className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-emerald-400 font-semibold border-t border-neutral-900 transition-colors"
+            >
+              ➕ Create tag: "{query.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+      {isOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+      )}
+    </div>
+  );
+}
+
 export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRoster, roster }: SkillCompilerProps) {
   const [skillName, setSkillName] = useState('');
   const [description, setDescription] = useState('');
   const [appliesIn, setAppliesIn] = useState<'combat' | 'expedition' | 'global'>('combat');
   const [priority, setPriority] = useState(10);
   const [unsuppressable, setUnsuppressable] = useState(false);
-  const [skillTags, setSkillTags] = useState(''); // Comma-separated string state for static tags
+  const [skillTags, setSkillTags] = useState<string[]>([]); // Dynamic array representation
   const [presets, setPresets] = useState<any[]>([]);
 
   // Search-dropdown states
@@ -32,7 +135,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       target_param: '',
       chance: '100',
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
       action_type: 'MULTIPLY_POWER',
       value: '1.25',
       log: '{caster} entered Surge!'
@@ -53,7 +156,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       target_param: '',
       chance: '100',
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
       action_type: 'MULTIPLY_POWER',
       value: '1.0',
       log: ''
@@ -140,8 +243,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
-      // Parse static skill tags (e.g. "Gamble, Buff" -> ["Gamble", "Buff"])
-      skill_tags: skillTags.split(',').map(t => t.trim()).filter(Boolean),
+      skill_tags: skillTags, // Saved directly as a clean array of strings
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -159,8 +261,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           target: branch.target || 'INHERIT',
           action_type: branch.action_type,
           value: branch.value,
-          // Parse branch-level dynamic tags
-          branch_tags: branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+          branch_tags: Array.isArray(branch.branch_tags) ? branch.branch_tags : [],
           log_template: branch.log
         })) : []
       }))
@@ -196,8 +297,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
-      // Parse static skill tags
-      skill_tags: skillTags.split(',').map(t => t.trim()).filter(Boolean),
+      skill_tags: skillTags, // Saved directly as a clean array of strings
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -215,8 +315,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           target: branch.target || 'INHERIT',
           action_type: branch.action_type,
           value: branch.value,
-          // Parse branch-level tags
-          branch_tags: branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+          branch_tags: Array.isArray(branch.branch_tags) ? branch.branch_tags : [],
           log_template: branch.log
         })) : []
       }))
@@ -234,8 +333,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setAppliesIn(preset.applies_in);
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
-    // Unpack static JSON arrays back into comma-separated text strings for editing
-    setSkillTags(preset.skill_tags ? preset.skill_tags.join(', ') : '');
+    
+    // Load as a clean array of strings directly
+    setSkillTags(Array.isArray(preset.skill_tags) ? preset.skill_tags.join(', ') : '');
 
     const formattedBlocks = preset.blocks.map((b: any) => {
       const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
@@ -255,15 +355,22 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           param: c.param,
           connector: c.connector || 'AND'
         })) : [{ type: 'NONE', param: '', connector: 'AND' }],
-        branches: b.branches ? b.branches.map((branch: any) => ({
-          chance: String(branch.chance || 50),
-          target: branch.target || 'INHERIT',
-          action_type: branch.action_type,
-          value: branch.value,
-          // Unpack branch-level dynamic tags
-          branch_tags: branch.branch_tags ? branch.branch_tags.join(', ') : '',
-          log: branch.log_template
-        })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }]
+        branches: b.branches ? b.branches.map((branch: any) => {
+          let bTags = '';
+          if (Array.isArray(branch.branch_tags)) {
+            bTags = branch.branch_tags.join(', ');
+          } else if (typeof branch.branch_tags === 'string') {
+            bTags = branch.branch_tags;
+          }
+          return {
+            chance: String(branch.chance || 50),
+            target: branch.target || 'INHERIT',
+            action_type: branch.action_type,
+            value: branch.value,
+            branch_tags: bTags,
+            log: branch.log_template
+          };
+        }) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }]
       };
     });
     setBlocks(formattedBlocks);
@@ -411,9 +518,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                     <option value="global">Global</option>
                   </select>
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Static Skill Tags</label>
-                  <input type="text" value={skillTags} onChange={(e) => setSkillTags(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white" placeholder="e.g. Gamble, Buff" />
+                  <TagSelector tags={skillTags} onChange={(newTags) => setSkillTags(newTags)} />
                 </div>
                 <div className="flex items-center pt-4">
                   <input type="checkbox" id="unsuppressable" checked={unsuppressable} onChange={(e) => setUnsuppressable(e.target.checked)} className="mr-2" />
@@ -654,9 +761,12 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Formula</label>
                                   <input type="text" value={branch.value} onChange={(e) => updateBranchField(idx, brIdx, 'value', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" placeholder="e.g. 1.75" />
                                 </div>
-                                <div>
+                                <div className="md:col-span-2">
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Tags</label>
-                                  <input type="text" value={branch.branch_tags || ''} onChange={(e) => updateBranchField(idx, brIdx, 'branch_tags', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" placeholder="e.g. Buff, Gamble_Buff" />
+                                  <TagSelector
+                                    tags={Array.isArray(branch.branch_tags) ? branch.branch_tags : (branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [])}
+                                    onChange={(newTags) => updateBranchField(idx, brIdx, 'branch_tags', newTags)}
+                                  />
                                 </div>
                               </div>
 
