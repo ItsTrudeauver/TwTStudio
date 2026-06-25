@@ -138,7 +138,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
       action_type: 'MULTIPLY_POWER',
       value: '1.25',
-      log: '{caster} entered Surge!'
+      log: '{caster} entered Surge!',
+      block_tags: [] // Initialized block-level tags
     }
   ]);
 
@@ -159,7 +160,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
       action_type: 'MULTIPLY_POWER',
       value: '1.0',
-      log: ''
+      log: '',
+      block_tags: [] // Initialized empty block-level tags array
     }]);
   };
 
@@ -243,7 +245,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
-      skill_tags: skillTags, // Saved directly as a clean array of strings
+      skill_tags: skillTags,
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -251,6 +253,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         action_type: b.action_type,
         value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
         log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
+        // Save block_tags cleanly as an array of strings
+        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
         conditions: b.conditions.map((c: any) => ({
           type: c.type,
           param: c.param,
@@ -297,7 +301,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
-      skill_tags: skillTags, // Saved directly as a clean array of strings
+      skill_tags: skillTags,
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -305,6 +309,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         action_type: b.action_type,
         value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
         log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
+        // Save block_tags cleanly as an array of strings
+        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
         conditions: b.conditions.map((c: any) => ({
           type: c.type,
           param: c.param,
@@ -350,6 +356,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         action_type: b.action_type,
         value: b.value,
         log: b.log_template,
+        // Unpack block_tags as an array of strings natively
+        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
         conditions: b.conditions ? b.conditions.map((c: any) => ({
           type: c.type,
           param: c.param,
@@ -779,7 +787,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
                             <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Modifier / Formula Value</label>
                             <input
@@ -799,6 +807,15 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                               onChange={(e) => updateBlockField(idx, 'log', e.target.value)}
                               className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-neutral-300"
                               placeholder="e.g. {caster} went Berserk (+50% Power)!"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Block Tags</label>
+                            <TagSelector
+                              tags={Array.isArray(block.block_tags) ? block.block_tags : []}
+                              onChange={(newTags) => updateBlockField(idx, 'block_tags', newTags)}
+                              placeholder="Add block-level tags..."
                             />
                           </div>
                         </div>
