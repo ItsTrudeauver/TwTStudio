@@ -17,6 +17,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   const [appliesIn, setAppliesIn] = useState<'combat' | 'expedition' | 'global'>('combat');
   const [priority, setPriority] = useState(10);
   const [unsuppressable, setUnsuppressable] = useState(false);
+  const [skillTags, setSkillTags] = useState(''); // Comma-separated string state for static tags
   const [presets, setPresets] = useState<any[]>([]);
 
   // Search-dropdown states
@@ -25,16 +26,16 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
   // In-state blocks initialized with complete double condition and nested branches
   const [blocks, setBlocks] = useState<any[]>([
-    { 
-      trigger: 'ON_POWER_CALC', 
-      target: 'SELF', 
+    {
+      trigger: 'ON_POWER_CALC',
+      target: 'SELF',
       target_param: '',
-      chance: '100', 
-      conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
-      action_type: 'MULTIPLY_POWER', 
-      value: '1.25', 
-      log: '{caster} entered Surge!' 
+      chance: '100',
+      conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }],
+      action_type: 'MULTIPLY_POWER',
+      value: '1.25',
+      log: '{caster} entered Surge!'
     }
   ]);
 
@@ -46,16 +47,16 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   }, []);
 
   const addBlockField = () => {
-    setBlocks([...blocks, { 
-      trigger: 'ON_POWER_CALC', 
-      target: 'SELF', 
+    setBlocks([...blocks, {
+      trigger: 'ON_POWER_CALC',
+      target: 'SELF',
       target_param: '',
-      chance: '100', 
-      conditions: [{ type: 'NONE', param: '', connector: 'AND' }], 
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }],
-      action_type: 'MULTIPLY_POWER', 
-      value: '1.0', 
-      log: '' 
+      chance: '100',
+      conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }],
+      action_type: 'MULTIPLY_POWER',
+      value: '1.0',
+      log: ''
     }]);
   };
 
@@ -139,6 +140,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
+      // Parse static skill tags (e.g. "Gamble, Buff" -> ["Gamble", "Buff"])
+      skill_tags: skillTags.split(',').map(t => t.trim()).filter(Boolean),
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -156,6 +159,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           target: branch.target || 'INHERIT',
           action_type: branch.action_type,
           value: branch.value,
+          // Parse branch-level dynamic tags
+          branch_tags: branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
           log_template: branch.log
         })) : []
       }))
@@ -191,6 +196,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
+      // Parse static skill tags
+      skill_tags: skillTags.split(',').map(t => t.trim()).filter(Boolean),
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -208,6 +215,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           target: branch.target || 'INHERIT',
           action_type: branch.action_type,
           value: branch.value,
+          // Parse branch-level tags
+          branch_tags: branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
           log_template: branch.log
         })) : []
       }))
@@ -225,7 +234,9 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setAppliesIn(preset.applies_in);
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
-    
+    // Unpack static JSON arrays back into comma-separated text strings for editing
+    setSkillTags(preset.skill_tags ? preset.skill_tags.join(', ') : '');
+
     const formattedBlocks = preset.blocks.map((b: any) => {
       const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
       const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
@@ -249,8 +260,10 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
           target: branch.target || 'INHERIT',
           action_type: branch.action_type,
           value: branch.value,
+          // Unpack branch-level dynamic tags
+          branch_tags: branch.branch_tags ? branch.branch_tags.join(', ') : '',
           log: branch.log_template
-        })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' }]
+        })) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }]
       };
     });
     setBlocks(formattedBlocks);
@@ -381,7 +394,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
           {selectedChar ? (
             <form onSubmit={handleSaveSkill} className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
                 <div>
                   <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Skill Name</label>
                   <input type="text" required value={skillName} onChange={(e) => setSkillName(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white" placeholder="Lucky 7" />
@@ -397,6 +410,10 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                     <option value="expedition">Expedition</option>
                     <option value="global">Global</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Static Skill Tags</label>
+                  <input type="text" value={skillTags} onChange={(e) => setSkillTags(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white" placeholder="e.g. Gamble, Buff" />
                 </div>
                 <div className="flex items-center pt-4">
                   <input type="checkbox" id="unsuppressable" checked={unsuppressable} onChange={(e) => setUnsuppressable(e.target.checked)} className="mr-2" />
@@ -603,8 +620,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           {block.branches?.map((branch: any, brIdx: number) => (
                             <div key={brIdx} className="bg-neutral-950 p-3 rounded border border-neutral-800/60 relative space-y-2">
                               <button type="button" onClick={() => removeBranchField(idx, brIdx)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs">✕</button>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+
+                              <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                                 <div>
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Chance (%)</label>
                                   <input type="number" min="1" max="100" value={branch.chance} onChange={(e) => updateBranchField(idx, brIdx, 'chance', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" />
@@ -637,6 +654,10 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Formula</label>
                                   <input type="text" value={branch.value} onChange={(e) => updateBranchField(idx, brIdx, 'value', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" placeholder="e.g. 1.75" />
                                 </div>
+                                <div>
+                                  <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Tags</label>
+                                  <input type="text" value={branch.branch_tags || ''} onChange={(e) => updateBranchField(idx, brIdx, 'branch_tags', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white" placeholder="e.g. Buff, Gamble_Buff" />
+                                </div>
                               </div>
 
                               <div>
@@ -645,6 +666,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                               </div>
                             </div>
                           ))}
+                          
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
