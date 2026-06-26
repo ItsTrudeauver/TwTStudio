@@ -19,7 +19,12 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
   const [power, setPower] = useState(1000);
   const [anilistId, setAnilistId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
-  const [isLimited, setIsLimited] = useState(false);
+  const [isLimited, setIsLimited] = useState(true); // <--- Set default of Limited to TRUE for new creations
+
+  // 3-Stat Proportional Budget State variables
+  const [classTag, setClassTag] = useState('Bruiser');
+  const [primaryStat, setPrimaryStat] = useState('atk');
+  const [primaryValue, setPrimaryValue] = useState(1.00);
 
   // Searchable Dropdown State
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +45,12 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
       setRarity(selectedChar.rarity);
       setPower(selectedChar.true_power);
       setAnilistId(selectedChar.anilist_id ? String(selectedChar.anilist_id) : '');
-      setIsLimited(selectedChar.is_limited || false); // <--- Pre-fills edit state
+      setIsLimited(selectedChar.is_limited !== undefined ? selectedChar.is_limited : true); // <--- Pre-fills edit state
+      
+      // Load 3-Stat metadata safely
+      setClassTag(selectedChar.class_tag || 'Bruiser');
+      setPrimaryStat(selectedChar.primary_stat || 'atk');
+      setPrimaryValue(selectedChar.primary_value !== undefined ? Number(selectedChar.primary_value) : 1.00);
     } else {
       handleClearSelection();
     }
@@ -55,9 +65,11 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
     setImgSrc('');
     setCompletedCrop(null);
     setCroppedFile(null);
-    setIsLimited(false); // <--- Resets state
+    setIsLimited(true); // <--- Resets to default of TRUE
+    setClassTag('Bruiser');
+    setPrimaryStat('atk');
+    setPrimaryValue(1.00);
   };
-
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -101,7 +113,7 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
       let charId = selectedChar?.id;
 
       if (selectedChar) {
-        // --- EDIT / REBALANCE MODE ---
+        // --- EDIT / REBALANCE MODE WITH 3-STAT BUDGET ---
         const { error: dbError } = await supabase
           .from('characters_cache')
           .update({
@@ -109,13 +121,16 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
             rarity,
             true_power: Number(power),
             anilist_id: anilistId ? Number(anilistId) : null,
-            is_limited: isLimited
+            is_limited: isLimited,
+            class_tag: classTag,
+            primary_stat: primaryStat,
+            primary_value: Number(primaryValue)
           })
           .eq('id', charId);
 
         if (dbError) throw new Error(dbError.message);
       } else {
-        // --- CREATION MODE ---
+        // --- CREATION MODE WITH 3-STAT BUDGET DEFAULT ---
         if (!croppedFile) {
           throw new Error("Portrait crop is required for new card variants!");
         }
@@ -127,6 +142,10 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
             rarity,
             true_power: Number(power),
             anilist_id: anilistId ? Number(anilistId) : null,
+            is_limited: isLimited,
+            class_tag: classTag,
+            primary_stat: primaryStat,
+            primary_value: Number(primaryValue),
             ability_tags: []
           })
           .select('*')
@@ -135,7 +154,6 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
         if (dbError || !newChar) throw new Error(dbError?.message);
         charId = newChar.id;
       }
-
       // Upload portrait if present in state
       if (croppedFile) {
         const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
@@ -250,6 +268,50 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
                 value={power}
                 onChange={(e) => setPower(Number(e.target.value))}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-white focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* --- 3-STAT PROPORTIONAL BUDGET INPUTS --- */}
+          <div className="grid grid-cols-3 gap-4 bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Class Tag</label>
+              <select
+                value={classTag}
+                onChange={(e) => setClassTag(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none"
+              >
+                <option value="Bruiser">Bruiser</option>
+                <option value="Sorcerer">Sorcerer</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Support">Support</option>
+                <option value="Rogue">Rogue</option>
+                <option value="Debuffer">Debuffer</option>
+                <option value="Specialist">Specialist</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Primary Stat</label>
+              <select
+                value={primaryStat}
+                onChange={(e) => setPrimaryStat(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none"
+              >
+                <option value="atk">ATK</option>
+                <option value="def">DEF</option>
+                <option value="hp">HP</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Primary Value</label>
+              <input
+                type="number"
+                step="0.05"
+                min="0.1"
+                max="3.0"
+                value={primaryValue}
+                onChange={(e) => setPrimaryValue(Number(e.target.value))}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none"
               />
             </div>
           </div>

@@ -135,8 +135,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       target_param: '',
       chance: '100',
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
-      action_type: 'MULTIPLY_POWER',
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: [] }],
+      action_type: 'MULTIPLY_ATK',
       value: '1.25',
       log: '{caster} entered Surge!',
       block_tags: [] // Initialized block-level tags
@@ -157,8 +157,8 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       target_param: '',
       chance: '100',
       conditions: [{ type: 'NONE', param: '', connector: 'AND' }],
-      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: [] }],
-      action_type: 'MULTIPLY_POWER',
+      branches: [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: [] }],
+      action_type: 'MULTIPLY_ATK',
       value: '1.0',
       log: '',
       block_tags: [] // Initialized empty block-level tags array
@@ -198,7 +198,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
-    updated[blockIdx].branches.push({ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '' });
+    updated[blockIdx].branches.push({ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '' });
     setBlocks(updated);
   };
 
@@ -344,44 +344,44 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
     setSkillTags(Array.isArray(preset.skill_tags) ? preset.skill_tags.join(', ') : '');
 
     const formattedBlocks = preset.blocks.map((b: any) => {
-      const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
-      const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
-      const exceptId = isExcept ? b.target.split('_').pop() : '';
+          const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
+          const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
+          const exceptId = isExcept ? b.target.split('_').pop() : '';
 
-      return {
-        trigger: b.trigger,
-        target: baseTarget,
-        target_param: exceptId,
-        chance: String(b.chance || 100),
-        action_type: b.action_type,
-        value: b.value,
-        log: b.log_template,
-        // Unpack block_tags as an array of strings natively
-        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
-        conditions: b.conditions ? b.conditions.map((c: any) => ({
-          type: c.type,
-          param: c.param,
-          connector: c.connector || 'AND'
-        })) : [{ type: 'NONE', param: '', connector: 'AND' }],
-        branches: b.branches ? b.branches.map((branch: any) => {
-          let bTags = '';
-          if (Array.isArray(branch.branch_tags)) {
-            bTags = branch.branch_tags.join(', ');
-          } else if (typeof branch.branch_tags === 'string') {
-            bTags = branch.branch_tags;
-          }
           return {
-            chance: String(branch.chance || 50),
-            target: branch.target || 'INHERIT',
-            action_type: branch.action_type,
-            value: branch.value,
-            branch_tags: bTags,
-            log: branch.log_template
+            trigger: b.trigger,
+            target: baseTarget,
+            target_param: exceptId,
+            chance: String(b.chance || 100),
+            action_type: b.action_type,
+            value: b.value,
+            log: b.log_template,
+            // Unpack block_tags as an array of strings natively
+            block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
+            conditions: b.conditions ? b.conditions.map((c: any) => ({
+              type: c.type,
+              param: c.param,
+              connector: c.connector || 'AND'
+            })) : [{ type: 'NONE', param: '', connector: 'AND' }],
+            branches: b.branches ? b.branches.map((branch: any) => {
+              let bTags = '';
+              if (Array.isArray(branch.branch_tags)) {
+                bTags = branch.branch_tags.join(', ');
+              } else if (typeof branch.branch_tags === 'string') {
+                bTags = branch.branch_tags;
+              }
+              return {
+                chance: String(branch.chance || 50),
+                target: branch.target || 'INHERIT',
+                action_type: branch.action_type,
+                value: branch.value,
+                branch_tags: bTags,
+                log: branch.log_template
+              };
+            }) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: '' }]
           };
-        }) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_POWER', value: '1.0', log: '', branch_tags: '' }]
-      };
-    });
-    setBlocks(formattedBlocks);
+        });
+        setBlocks(formattedBlocks);
   };
 
   return (
@@ -700,10 +700,13 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           onChange={(e) => updateBlockField(idx, 'action_type', e.target.value)}
                           className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
                         >
-                          <option value="MULTIPLY_POWER">Multiply Power (Dynamic/Formula)</option>
-                          <option value="ADD_FLAT_POWER">Add Flat Power (Formula)</option>
-                          <option value="HEAL_ALLY">Heal Ally (Lost/Max HP Scaling)</option>
-                          <option value="MULTIPLY_HP">Multiply HP (Raid Stat Scaling)</option>
+                          <option value="MULTIPLY_POWER">Multiply Power (Anya/Specialist Exception)</option>
+                          <option value="ADD_FLAT_POWER">Add Flat Power (Mayple/Specialist Exception)</option>
+                          <option value="MULTIPLY_ATK">Multiply ATK (3-Stat Budget Model)</option>
+                          <option value="MULTIPLY_DEF">Multiply DEF (3-Stat Budget Model)</option>
+                          <option value="MULTIPLY_HP">Multiply HP (3-Stat Budget Model)</option>
+                          <option value="ADD_FLAT_ATK">Add Flat ATK (3-Stat Budget Model)</option>
+                          <option value="HEAL_ALLY">Heal Ally (Shared HP / Raid HP Scaling)</option>
                           <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield (Barrier)</option>
                           <option value="REINFORCE_STRUCK_SHIELD">Reinforce Struck Shield</option>
                           <option value="SET_BASE_POWER">Set Base Power (Anya Mind-read)</option>
@@ -711,7 +714,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                           <option value="FORCE_VARIANCE">Force Variance (Float value)</option>
                           <option value="HARVEST_VARIANCE_DELTA">Harvest Variance Delta</option>
                           <option value="SET_STATE_FLAG">Set Global State Flag</option>
-                          <option value="REGISTER_RETRY">Register Retry (Yhwach)</option>
                           <option value="SET_MULTIPLIER_FLOOR">Set Multiplier Floor (Cleanse)</option>
                           <option value="ELIMINATE_UNIT">Eliminate / Kill Unit (Kamikaze)</option>
                           <option value="FORCE_BATTLE_RESULT">Force Battle Result (Revive)</option>
@@ -760,6 +762,10 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
                                   <select value={branch.action_type} onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
                                     <option value="MULTIPLY_POWER">Multiply Power</option>
                                     <option value="ADD_FLAT_POWER">Add Flat Power</option>
+                                    <option value="MULTIPLY_ATK">Multiply ATK</option>
+                                    <option value="MULTIPLY_DEF">Multiply DEF</option>
+                                    <option value="MULTIPLY_HP">Multiply HP</option>
+                                    <option value="ADD_FLAT_ATK">Add Flat ATK</option>
                                     <option value="FORCE_VARIANCE">Force Variance</option>
                                     <option value="REGISTER_POST_PHASE">Register Post-Phase Action</option>
                                     <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
