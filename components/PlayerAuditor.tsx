@@ -497,74 +497,75 @@ export default function PlayerAuditor() {
 
           {/* Gift Card Console (Gifting search dropdown) */}
           <div className="bg-neutral-900 p-5 border border-neutral-800 rounded-lg flex-1">
-          <h3 className="text-sm font-bold mb-4">🎁 Award Unit to Player</h3>
-          {player ? (
-            <form onSubmit={handleGiftCharacter} className="space-y-4">
-              {/* Typable search input for gifting characters */}
-              <div className="relative">
-                <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Search & Select Card</label>
-                <input
-                  type="text"
-                  placeholder="🔍 Search character name..."
-                  value={giftDropdownOpen ? giftSearchTerm : (selectedGiftChar ? `${selectedGiftChar.name} (${selectedGiftChar.rarity})` : '')}
-                  onChange={(e) => {
-                    setGiftSearchTerm(e.target.value);
-                    setGiftDropdownOpen(true);
-                  }}
-                  onFocus={() => {
-                    setGiftSearchTerm('');
-                    setGiftDropdownOpen(true);
-                  }}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700"
-                />
-                {giftDropdownOpen && (
-                  <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded shadow-2xl z-50">
-                    {roster
-                      .filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase()))
-                      .map(char => (
-                        <button
-                          key={char.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedGiftChar(char);
-                            setGiftSearchTerm(`${char.name} (${char.rarity})`);
-                            setGiftDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-neutral-800 text-xs text-neutral-300 border-b border-neutral-800/40 last:border-0"
-                        >
-                          {char.name} ({char.rarity}) [ID {char.id}]
-                        </button>
-                      ))}
-                    {roster.filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase())).length === 0 && (
-                      <p className="text-xs text-neutral-500 italic p-3 text-center">No matching cards found.</p>
-                    )}
-                  </div>
-                )}
-              </div>
+            <h3 className="text-sm font-bold mb-4">🎁 Award Unit to Player</h3>
+            {player ? (
+              <form onSubmit={handleGiftCharacter} className="space-y-4">
+                {/* Typable search input for gifting characters */}
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Search & Select Card</label>
+                  <input
+                    type="text"
+                    placeholder="🔍 Search character name..."
+                    value={giftDropdownOpen ? giftSearchTerm : (selectedGiftChar ? `${selectedGiftChar.name} (${selectedGiftChar.rarity})` : '')}
+                    onChange={(e) => {
+                      setGiftSearchTerm(e.target.value);
+                      setGiftDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      setGiftSearchTerm('');
+                      setGiftDropdownOpen(true);
+                    }}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700"
+                  />
+                  {giftDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded shadow-2xl z-50">
+                      {roster
+                        .filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase()))
+                        .map(char => (
+                          <button
+                            key={char.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedGiftChar(char);
+                              setGiftSearchTerm(`${char.name} (${char.rarity})`);
+                              setGiftDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-neutral-800 text-xs text-neutral-300 border-b border-neutral-800/40 last:border-0"
+                          >
+                            {char.name} ({char.rarity}) [ID {char.id}]
+                          </button>
+                        ))}
+                      {roster.filter(char => char.name.toLowerCase().includes(giftSearchTerm.toLowerCase())).length === 0 && (
+                        <p className="text-xs text-neutral-500 italic p-3 text-center">No matching cards found.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Dupe Level (0 - 10)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={giftDupes}
-                  onChange={(e) => setGiftDupes(Number(e.target.value))}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase mb-1">Dupe Level (0 - 10)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    value={giftDupes}
+                    onChange={(e) => setGiftDupes(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none"
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={gifting || !selectedGiftChar}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all shadow disabled:opacity-50"
-              >
-                {gifting ? 'Granting...' : 'Grant Character to Player'}
-              </button>
-            </form>
-          ) : (
-            <p className="text-xs text-neutral-500 italic">Audit a player in the directory first to grant character assets.</p>
-          )}
+                <button
+                  type="submit"
+                  disabled={gifting || !selectedGiftChar}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all shadow disabled:opacity-50"
+                >
+                  {gifting ? 'Granting...' : 'Grant Character to Player'}
+                </button>
+              </form>
+            ) : (
+              <p className="text-xs text-neutral-500 italic">Audit a player in the directory first to grant character assets.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
