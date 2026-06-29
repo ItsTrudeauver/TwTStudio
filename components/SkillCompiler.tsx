@@ -920,6 +920,7 @@ export default function SkillCompiler({
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch DO</label>
                                   <select value={branch.action_type} onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
                                     <option value="MULTIPLY_POWER">Multiply Power</option>
+                                    <option value="MULTIPLY_BASE_POWER">Multiply Base Power</option>
                                     <option value="ADD_FLAT_POWER">Add Flat Power</option>
                                     <option value="MULTIPLY_ATK">Multiply ATK</option>
                                     <option value="SET_ATK_MULTIPLIER">Set ATK Multiplier</option>
