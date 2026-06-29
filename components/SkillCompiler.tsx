@@ -9,6 +9,10 @@ interface SkillCompilerProps {
   setSelectedChar: (char: any) => void;
   fetchRoster: () => void;
   roster: any[];
+  selectedRelic: any;
+  setSelectedRelic: (relic: any) => void;
+  fetchRelics: () => void;
+  relics: any[];
 }
 
 // Global registry of standard dynamic and static combat tags
@@ -114,14 +118,25 @@ function TagSelector({ tags, onChange, placeholder = "Select tags..." }: TagSele
   );
 }
 
-export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRoster, roster }: SkillCompilerProps) {
+export default function SkillCompiler({ 
+  selectedChar, setSelectedChar, fetchRoster, roster,
+  selectedRelic, setSelectedRelic, fetchRelics, relics 
+}: SkillCompilerProps) {
+  const [compilerMode, setCompilerMode] = useState<'character' | 'pigment'>('character');
   const [skillName, setSkillName] = useState('');
   const [description, setDescription] = useState('');
   const [appliesIn, setAppliesIn] = useState<'combat' | 'expedition' | 'global'>('combat');
   const [priority, setPriority] = useState(10);
   const [unsuppressable, setUnsuppressable] = useState(false);
-  const [skillTags, setSkillTags] = useState<string[]>([]); // Dynamic array representation
+  const [skillTags, setSkillTags] = useState<string[]>([]);
   const [presets, setPresets] = useState<any[]>([]);
+
+  // Sandbox variables
+  const [testFormula, setTestFormula] = useState('1.5 * dupes');
+  const [sandboxDupes, setSandboxDupes] = useState(5);
+  const [sandboxDeadAllies, setSandboxDeadAllies] = useState(0);
+  const [sandboxSuppressed, setSandboxSuppressed] = useState(0);
+  const [sandboxResult, setSandboxResult] = useState<string | number>('');
 
   // Search-dropdown states
   const [searchTerm, setSearchTerm] = useState('');
@@ -139,9 +154,31 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       action_type: 'MULTIPLY_ATK',
       value: '1.25',
       log: '{caster} entered Surge!',
-      block_tags: [] // Initialized block-level tags
+      block_tags: []
     }
   ]);
+
+  const handleRunSandbox = () => {
+    try {
+      // Basic math parsing logic for mock calculations
+      let clean = testFormula
+        .replace(/dupes/g, String(sandboxDupes))
+        .replace(/dead_allies_count/g, String(sandboxDeadAllies))
+        .replace(/suppressed_count/g, String(sandboxSuppressed));
+
+      // Sanitize input formula string
+      if (/[^-+*/()0-9.\s]/i.test(clean.replace(/\*\*/g, ''))) {
+        throw new Error('Unsupported tokens in validation sandbox');
+      }
+
+      // Handle exponentiation operator standard
+      const mathExpression = clean.replace(/\*\*/g, '^');
+      const evalSafe = Function(`"use strict"; return (${clean})`)();
+      setSandboxResult(Number(evalSafe));
+    } catch (err: any) {
+      setSandboxResult(`Error: ${err.message}`);
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('stardust_skill_presets');
@@ -216,28 +253,40 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
 
   const handleDeleteSkill = async (e: React.MouseEvent, skillNameToDelete: string) => {
     e.stopPropagation();
-    if (!selectedChar) return;
-    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${selectedChar.name}?`)) return;
+    const activeObj = compilerMode === 'character' ? selectedChar : selectedRelic;
+    if (!activeObj) return;
+    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${activeObj.name}?`)) return;
 
-    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
+    const currentSkills = Array.isArray(activeObj.ability_tags) ? activeObj.ability_tags : [];
     const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
 
+    const targetTable = compilerMode === 'character' ? 'characters_cache' : 'relics_cache';
+
     const { error } = await supabase
-      .from('characters_cache')
+      .from(targetTable)
       .update({ ability_tags: updatedSkills })
-      .eq('id', selectedChar.id);
+      .eq('id', activeObj.id);
 
     if (error) {
       alert(`Error deleting skill: ${error.message}`);
     } else {
-      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
-      fetchRoster();
+      if (compilerMode === 'character') {
+        setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
+        fetchRoster();
+      } else {
+        setSelectedRelic({ ...selectedRelic, ability_tags: updatedSkills });
+        fetchRelics();
+      }
     }
   };
 
   const handleSaveSkill = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChar) return;
+    const activeObj = compilerMode === 'character' ? selectedChar : selectedRelic;
+    if (!activeObj) {
+      alert('Please select an active compiler target before saving.');
+      return;
+    }
 
     const compiledSkill = {
       skill_name: skillName,
@@ -253,7 +302,6 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
         action_type: b.action_type,
         value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
         log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
-        // Save block_tags cleanly as an array of strings
         block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
         conditions: b.conditions.map((c: any) => ({
           type: c.type,
@@ -271,20 +319,27 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       }))
     };
 
-    const currentSkills = Array.isArray(selectedChar.ability_tags) ? selectedChar.ability_tags : [];
+    const currentSkills = Array.isArray(activeObj.ability_tags) ? activeObj.ability_tags : [];
     const updatedSkills = [...currentSkills.filter((s: any) => s.skill_name !== skillName), compiledSkill];
 
+    const targetTable = compilerMode === 'character' ? 'characters_cache' : 'relics_cache';
+
     const { error } = await supabase
-      .from('characters_cache')
+      .from(targetTable)
       .update({ ability_tags: updatedSkills })
-      .eq('id', selectedChar.id);
+      .eq('id', activeObj.id);
 
     if (error) {
       alert(`Error saving skill: ${error.message}`);
     } else {
-      alert(`✨ Compiled skill saved successfully to ${selectedChar.name}!`);
-      setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
-      fetchRoster();
+      alert(`✨ Compiled skill saved successfully to ${activeObj.name}!`);
+      if (compilerMode === 'character') {
+        setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
+        fetchRoster();
+      } else {
+        setSelectedRelic({ ...selectedRelic, ability_tags: updatedSkills });
+        fetchRelics();
+      }
       setSkillName('');
       setDescription('');
     }
@@ -385,57 +440,104 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
   };
 
   return (
-    <div className="space-y-4 h-[calc(100vh-180px)] overflow-y-auto">
-      {/* Search-As-You-Type Horizontal Roster Selector */}
-      <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800 relative">
-        <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Select Character to Edit:</label>
-        
-        <div className="relative min-w-[260px]">
-          <input
-            type="text"
-            placeholder="🔍 Search character name..."
-            value={isOpen ? searchTerm : (selectedChar ? `${selectedChar.name} (${selectedChar.rarity})` : '')}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => {
-              setSearchTerm('');
-              setIsOpen(true);
-            }}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-neutral-700"
-          />
-          {isOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded shadow-2xl z-50">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedChar(null);
-                  setSearchTerm('');
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-3 py-1.5 hover:bg-neutral-850 text-xs text-red-400 border-b border-neutral-800 font-bold"
-              >
-                ✕ Clear Selection
-              </button>
-              {roster
-                .filter(char => char.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                .map(char => (
-                  <button
-                    key={char.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChar(char);
-                      setSearchTerm(`${char.name} (${char.rarity})`);
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300"
-                  >
-                    {char.name} ({char.rarity}) [ID {char.id}]
-                  </button>
-                ))}
-            </div>
-          )}
+    <div className="space-y-4">
+      {/* Mode and Active Target Switch Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800 relative">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Target Type:</label>
+          <div className="flex bg-neutral-950 rounded p-1 border border-neutral-800">
+            <button
+              onClick={() => {
+                setCompilerMode('character');
+                setSearchTerm('');
+                setIsOpen(false);
+              }}
+              className={`py-1 px-3 rounded text-[10px] font-bold transition-all ${compilerMode === 'character' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+            >
+              👤 Character
+            </button>
+            <button
+              onClick={() => {
+                setCompilerMode('pigment');
+                setSearchTerm('');
+                setIsOpen(false);
+              }}
+              className={`py-1 px-3 rounded text-[10px] font-bold transition-all ${compilerMode === 'pigment' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+            >
+              🔮 Pigment (Relic)
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 md:col-span-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Active Selection:</label>
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder={compilerMode === 'character' ? "🔍 Search character..." : "🔍 Search pigment..."}
+              value={isOpen ? searchTerm : (compilerMode === 'character' ? (selectedChar ? `${selectedChar.name} (${selectedChar.rarity})` : '') : (selectedRelic ? `${selectedRelic.name} (${selectedRelic.chroma_color})` : ''))}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setIsOpen(true);
+              }}
+              onFocus={() => {
+                setSearchTerm('');
+                setIsOpen(true);
+              }}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white focus:outline-none focus:border-neutral-700"
+            />
+            {isOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded shadow-2xl z-50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (compilerMode === 'character') setSelectedChar(null);
+                    else setSelectedRelic(null);
+                    setSearchTerm('');
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-1.5 hover:bg-neutral-850 text-xs text-red-400 border-b border-neutral-800 font-bold"
+                >
+                  ✕ Clear Selection
+                </button>
+                {compilerMode === 'character' ? (
+                  roster
+                    .filter(char => char.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(char => (
+                      <button
+                        key={char.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedChar(char);
+                          setSearchTerm(`${char.name} (${char.rarity})`);
+                          setIsOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300"
+                      >
+                        {char.name} ({char.rarity}) [ID {char.id}]
+                      </button>
+                    ))
+                ) : (
+                  relics
+                    .filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(r => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedRelic(r);
+                          setSearchTerm(`${r.name} (${r.chroma_color})`);
+                          setIsOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300"
+                      >
+                        {r.name} ({r.rarity}) [{r.chroma_color}] [ID {r.id}]
+                      </button>
+                    ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -443,44 +545,43 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* PANEL 2.1: ACTIVE SKILLS & PRESETS */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[350px] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
-            {selectedChar ? (
+            {((compilerMode === 'character' && selectedChar) || (compilerMode === 'pigment' && selectedRelic)) ? (
               <div className="space-y-3">
-                <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{selectedChar.name}</span></p>
-                {Array.isArray(selectedChar.ability_tags) && selectedChar.ability_tags.length > 0 ? (
-                  selectedChar.ability_tags.map((skill: any, idx: number) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => handleLoadPreset(skill)}
-                      className="group bg-neutral-950 hover:bg-neutral-900/60 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1 cursor-pointer transition-all relative"
+                <p className="text-xs text-neutral-400">Selected: <span className="font-bold text-white">{compilerMode === 'character' ? selectedChar.name : selectedRelic.name}</span></p>
+                {(compilerMode === 'character' ? selectedChar.ability_tags : selectedRelic.ability_tags)?.map((skill: any, idx: number) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => handleLoadPreset(skill)}
+                    className="group bg-neutral-950 hover:bg-neutral-900/60 border border-neutral-800 p-2.5 rounded text-[11px] space-y-1 cursor-pointer transition-all relative"
+                  >
+                    <button
+                      onClick={(e) => handleDeleteSkill(e, skill.skill_name)}
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px]"
                     >
-                      <button
-                        onClick={(e) => handleDeleteSkill(e, skill.skill_name)}
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px]"
-                      >
-                        ✕ Delete
-                      </button>
-                      <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
-                      <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
-                      {skill.blocks?.map((b: any, bIdx: number) => (
-                        <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
-                          "{b.log_template || (b.action_type === 'REGISTER_CHANCE_ROUTER' ? 'Branches Chance Engine Triggered' : '')}"
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-neutral-500 italic">No skills currently assigned to this unit.</p>
+                      ✕ Delete
+                    </button>
+                    <div className="font-semibold text-emerald-400 text-xs">{skill.skill_name}</div>
+                    <div className="text-neutral-500">Priority: {skill.priority} | {skill.applies_in}</div>
+                    {skill.blocks?.map((b: any, bIdx: number) => (
+                      <div key={bIdx} className="text-neutral-400 border-t border-neutral-900 pt-1 mt-1 italic">
+                        "{b.log_template || (b.action_type === 'REGISTER_CHANCE_ROUTER' ? 'Branches Chance Engine Triggered' : '')}"
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {((compilerMode === 'character' ? selectedChar.ability_tags : selectedRelic.ability_tags) || []).length === 0 && (
+                  <p className="text-xs text-neutral-500 italic">No skills currently assigned.</p>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-neutral-500 italic">Select a character from the selector above first.</p>
+              <p className="text-xs text-neutral-500 italic">Select an asset from the switcher above first.</p>
             )}
           </div>
 
           {/* Local Presets list */}
-          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[240px] overflow-y-auto">
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[200px] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Global Presets Library</h3>
             {presets.length > 0 ? (
               <div className="space-y-1.5">
@@ -495,6 +596,50 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
               <p className="text-xs text-neutral-500 italic">No saved skill presets.</p>
             )}
           </div>
+
+          {/* Algebraic Formula Sandbox Tester */}
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">🧮 Math Formula Validator</h3>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Formula to test</label>
+                <input
+                  type="text"
+                  value={testFormula}
+                  onChange={(e) => setTestFormula(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded p-1.5 text-xs text-white"
+                  placeholder="e.g. 1.10 ** dead_allies_count"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Dupes</label>
+                  <input type="number" value={sandboxDupes} onChange={(e) => setSandboxDupes(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                </div>
+                <div>
+                  <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Dead Allies</label>
+                  <input type="number" value={sandboxDeadAllies} onChange={(e) => setSandboxDeadAllies(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                </div>
+                <div>
+                  <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Suppressed</label>
+                  <input type="number" value={sandboxSuppressed} onChange={(e) => setSandboxSuppressed(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRunSandbox}
+                className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-1.5 rounded transition-all text-[11px]"
+              >
+                Compute Mock Parse
+              </button>
+              {sandboxResult !== '' && (
+                <div className="bg-neutral-950 border border-neutral-800 p-2 rounded flex justify-between font-mono text-[11px]">
+                  <span className="text-neutral-500">Output:</span>
+                  <span className={String(sandboxResult).startsWith('Error') ? 'text-red-400' : 'text-emerald-400 font-bold'}>{sandboxResult}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* PANEL 2.2: COMPILER WORKSPACE */}
@@ -507,7 +652,7 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
             </div>
           </div>
 
-          {selectedChar ? (
+          {((compilerMode === 'character' && selectedChar) || (compilerMode === 'pigment' && selectedRelic)) ? (
             <form onSubmit={handleSaveSkill} className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
                 <div>
@@ -832,11 +977,11 @@ export default function SkillCompiler({ selectedChar, setSelectedChar, fetchRost
               </div>
 
               <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded text-xs transition-all shadow">
-                Save and Compile Skill to {selectedChar.name}
+                Save and Compile Skill to {compilerMode === 'character' ? selectedChar.name : selectedRelic.name}
               </button>
             </form>
           ) : (
-            <p className="text-xs text-neutral-500 italic">Select a character from the selector above first.</p>
+            <p className="text-xs text-neutral-500 italic">Select an active target from the selector above first.</p>
           )}
         </div>
       </div>

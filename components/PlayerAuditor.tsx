@@ -22,6 +22,15 @@ export default function PlayerAuditor() {
   const [xp, setXp] = useState(0);
   const [updating, setUpdating] = useState(false);
 
+  // Equipped team state (Characters + Relics)
+  const [equippedTeam, setEquippedTeam] = useState<any[]>([]);
+
+  // User Items (Consumables) states
+  const [userItems, setUserItems] = useState<any[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState('SSR Token');
+  const [modifyItemQty, setModifyItemQty] = useState(1);
+  const [adjustingItems, setAdjustingItems] = useState(false);
+
   // Autocomplete gifting states
   const [selectedGiftChar, setSelectedGiftChar] = useState<any>(null);
   const [giftSearchTerm, setGiftSearchTerm] = useState('');
@@ -83,10 +92,95 @@ export default function PlayerAuditor() {
     if (data) setInventory(data || []);
   };
 
+  const fetchPlayerTeam = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('user_id', uid)
+      .single();
+
+    if (error || !data) {
+      setEquippedTeam([]);
+      return;
+    }
+
+    // Unpack equipped character & relic cache IDs
+    const charIds = [data.slot_1, data.slot_2, data.slot_3, data.slot_4, data.slot_5].filter(Boolean);
+    const relicIds = [data.slot_1_relic, data.slot_2_relic, data.slot_3_relic, data.slot_4_relic, data.slot_5_relic].filter(Boolean);
+
+    // Get character names
+    let charMap: Record<number, string> = {};
+    if (charIds.length > 0) {
+      const { data: chars } = await supabase.from('inventory').select('id, characters_cache(name)').in('id', charIds);
+      chars?.forEach((c: any) => {
+        if (c.characters_cache) charMap[c.id] = c.characters_cache.name;
+      });
+    }
+
+    // Get relic names
+    let relicMap: Record<number, string> = {};
+    if (relicIds.length > 0) {
+      const { data: relics } = await supabase.from('relics_inventory').select('id, relics_cache(name)').in('id', relicIds);
+      relics?.forEach((r: any) => {
+        if (r.relics_cache) relicMap[r.id] = r.relics_cache.name;
+      });
+    }
+
+    const teamSlots = [];
+    for (let i = 1; i <= 5; i++) {
+      const cId = data[`slot_${i}`];
+      const rId = data[`slot_${i}_relic`];
+      teamSlots.push({
+        slot: i,
+        char: cId ? (charMap[cId] || `Inv ID ${cId}`) : 'Empty Slot',
+        relic: rId ? (relicMap[rId] || `Relic ID ${rId}`) : 'None'
+      });
+    }
+    setEquippedTeam(teamSlots);
+  };
+
+  const fetchPlayerItems = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('user_items')
+      .select('*')
+      .eq('user_id', uid);
+    if (!error && data) {
+      setUserItems(data);
+    } else {
+      setUserItems([]);
+    }
+  };
+
+  const handleAdjustItemQuantity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!player) return;
+
+    setAdjustingItems(true);
+    try {
+      const { error } = await supabase
+        .from('user_items')
+        .upsert({
+          user_id: player.user_id,
+          item_id: selectedItemId,
+          quantity: Number(modifyItemQty)
+        }, { onConflict: 'user_id,item_id' });
+
+      if (error) throw error;
+      alert(`🎒 Successfully updated ${selectedItemId} quantity to ${modifyItemQty}!`);
+      fetchPlayerItems(player.user_id);
+    } catch (err: any) {
+      alert(`Item update failed: ${err.message}`);
+    } finally {
+      setAdjustingItems(false);
+    }
+  };
+
   const selectPlayer = async (uid: string) => {
     setLoading(true);
     setPlayer(null);
     setInventory([]);
+    setEquippedTeam([]);
+    setUserItems([]);
 
     try {
       const { data, error } = await supabase
@@ -105,6 +199,8 @@ export default function PlayerAuditor() {
       setLevel(data.team_level || 1);
       setXp(data.team_xp || 0);
       await fetchInventory(data.user_id);
+      await fetchPlayerTeam(data.user_id);
+      await fetchPlayerItems(data.user_id);
     } catch (err: any) {
       alert(`Error loading player details: ${err.message}`);
     }
@@ -295,28 +391,112 @@ export default function PlayerAuditor() {
       {/* Middle/Right Columns: Inventory List & Gifting Console */}
       <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-hidden">
         
-        {/* Inventory Viewer */}
-        <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex flex-col h-full overflow-hidden">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Player Inventory</h3>
-          <div className="space-y-1.5 flex-1 overflow-y-auto">
-            {inventory.length > 0 ? (
-              inventory.map((item) => (
-                <div key={item.id} className="flex justify-between items-center bg-neutral-950 p-2 rounded border border-neutral-800/60 text-xs">
-                  <div>
-                    <span className="font-semibold text-neutral-300">{item.characters_cache?.name}</span>
-                    <span className="text-neutral-500 text-[10px] ml-2">({item.characters_cache?.rarity})</span>
+        {/* Left Sub-Column: Inventory Viewer & Team Visualizer */}
+        <div className="flex flex-col gap-4 h-full overflow-hidden">
+          {/* Equipped Team Visualizer */}
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Equipped Team Active Slots</h3>
+            {equippedTeam.length > 0 ? (
+              <div className="grid grid-cols-1 gap-1 text-[11px]">
+                {equippedTeam.map((slot) => (
+                  <div key={slot.slot} className="bg-neutral-950 border border-neutral-800/40 p-1.5 rounded flex justify-between">
+                    <div>
+                      <span className="text-neutral-500 mr-2 font-bold">{slot.slot}.</span>
+                      <span className="text-neutral-200 font-semibold">{slot.char}</span>
+                    </div>
+                    <span className="text-neutral-500 italic text-[10px]">relic: {slot.relic}</span>
                   </div>
-                  <span className="text-emerald-400 font-mono">Dupe Lv.{item.dupe_level}</span>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
-              <p className="text-xs text-neutral-500 italic">Inventory is empty or no player selected.</p>
+              <p className="text-[10px] text-neutral-500 italic">No squad active or player not selected.</p>
             )}
+          </div>
+
+          {/* Inventory Viewer */}
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg flex-1 overflow-hidden flex flex-col">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Player Inventory</h3>
+            <div className="space-y-1.5 flex-1 overflow-y-auto">
+              {inventory.length > 0 ? (
+                inventory.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center bg-neutral-950 p-2 rounded border border-neutral-800/60 text-xs">
+                    <div>
+                      <span className="font-semibold text-neutral-300">{item.characters_cache?.name}</span>
+                      <span className="text-neutral-500 text-[10px] ml-2">({item.characters_cache?.rarity})</span>
+                    </div>
+                    <span className="text-emerald-400 font-mono text-[10px]">Dupe Lv.{item.dupe_level}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-neutral-500 italic">Inventory is empty or no player selected.</p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Gift Card Console (Gifting search dropdown) */}
-        <div className="bg-neutral-900 p-5 border border-neutral-800 rounded-lg h-full overflow-y-auto">
+        {/* Right Sub-Column: Gifting & Items Manager */}
+        <div className="flex flex-col gap-4 h-full overflow-y-auto">
+          {/* Items / Consumables Manager */}
+          <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Modify Player Items Balance</h3>
+            {player ? (
+              <div className="space-y-3">
+                <div className="bg-neutral-950 p-2 rounded border border-neutral-800/40 text-[10px] space-y-1 font-mono">
+                  {userItems.length > 0 ? (
+                    userItems.map(item => (
+                      <div key={item.item_id} className="flex justify-between">
+                        <span className="text-neutral-400">{item.item_id}:</span>
+                        <span className="text-white font-bold">{item.quantity}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-neutral-500">No custom items held in bag.</span>
+                  )}
+                </div>
+
+                <form onSubmit={handleAdjustItemQuantity} className="space-y-2 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Item Select</label>
+                      <select
+                        value={selectedItemId}
+                        onChange={(e) => setSelectedItemId(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-[11px] text-white"
+                      >
+                        <option value="SSR Token">SSR Token</option>
+                        <option value="bond_small">Faint Tincture</option>
+                        <option value="bond_med">Vital Draught</option>
+                        <option value="bond_large">Heart Elixirs</option>
+                        <option value="bond_ur">Essence of Devotion</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Set Quantity</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={modifyItemQty}
+                        onChange={(e) => setModifyItemQty(Number(e.target.value))}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={adjustingItems}
+                    className="w-full bg-neutral-100 hover:bg-white text-neutral-900 font-bold py-1 px-3 rounded text-[11px]"
+                  >
+                    {adjustingItems ? 'Saving item modifications...' : 'Update Item Quantity'}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <p className="text-[10px] text-neutral-500 italic">Select a player to modify custom bag items.</p>
+            )}
+          </div>
+
+          {/* Gift Card Console (Gifting search dropdown) */}
+          <div className="bg-neutral-900 p-5 border border-neutral-800 rounded-lg flex-1">
           <h3 className="text-sm font-bold mb-4">🎁 Award Unit to Player</h3>
           {player ? (
             <form onSubmit={handleGiftCharacter} className="space-y-4">

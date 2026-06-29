@@ -9,6 +9,8 @@ import RosterCreator from '../components/RosterCreator';
 import SkillCompiler from '../components/SkillCompiler';
 import BannerManager from '../components/BannerManager';
 import PlayerAuditor from '../components/PlayerAuditor';
+import PigmentManager from '../components/PigmentManager';
+import RaidScheduler from '../components/RaidScheduler';
 
 export default function AdminStudio() {
   const [email, setEmail] = useState('');
@@ -18,10 +20,12 @@ export default function AdminStudio() {
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Tab Manager: Roster, Skills, Banners, Player Audits
-  const [activeTab, setActiveTab] = useState<'roster' | 'skills' | 'banners' | 'auditor'>('skills');
+  // Tab Manager: Roster, Pigments, Skills, Banners, Raids, Player Audits
+  const [activeTab, setActiveTab] = useState<'roster' | 'pigments' | 'skills' | 'banners' | 'raids' | 'auditor'>('skills');
   const [roster, setRoster] = useState<any[]>([]);
+  const [relics, setRelics] = useState<any[]>([]);
   const [selectedChar, setSelectedChar] = useState<any>(null);
+  const [selectedRelic, setSelectedRelic] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -38,6 +42,7 @@ export default function AdminStudio() {
   useEffect(() => {
     if (session) {
       fetchRoster();
+      fetchRelics();
     }
   }, [session]);
 
@@ -51,6 +56,19 @@ export default function AdminStudio() {
       console.error("❌ Supabase Fetch Error:", error.message);
     } else {
       setRoster(data || []);
+    }
+  };
+
+  const fetchRelics = async () => {
+    const { data, error } = await supabase
+      .from('relics_cache')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.error("❌ Supabase Relic Fetch Error:", error.message);
+    } else {
+      setRelics(data || []);
     }
   };
 
@@ -81,28 +99,40 @@ export default function AdminStudio() {
         </header>
 
         {/* Global Tab Router Selector */}
-        <div className="flex gap-2 border-b border-neutral-800 pb-2 mb-4">
+        <div className="flex gap-2 border-b border-neutral-800 pb-2 mb-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('skills')}
-            className={`py-1.5 px-4 rounded text-xs font-bold transition-all ${activeTab === 'skills' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'skills' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
           >
-            ✨ Visual Skill Compiler
+            ✨ Unified Skill Compiler
           </button>
           <button
             onClick={() => setActiveTab('roster')}
-            className={`py-1.5 px-4 rounded text-xs font-bold transition-all ${activeTab === 'roster' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'roster' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
           >
-            👤 Character Metadata & Crop
+            👤 Character Metadata
+          </button>
+          <button
+            onClick={() => setActiveTab('pigments')}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'pigments' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+          >
+            🔮 Pigment Registry
           </button>
           <button
             onClick={() => setActiveTab('banners')}
-            className={`py-1.5 px-4 rounded text-xs font-bold transition-all ${activeTab === 'banners' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'banners' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
           >
-            📅 Event Banner Scheduler
+            📅 Banner Scheduler
+          </button>
+          <button
+            onClick={() => setActiveTab('raids')}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'raids' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+          >
+            ⚔️ Raid Schedule Panel
           </button>
           <button
             onClick={() => setActiveTab('auditor')}
-            className={`py-1.5 px-4 rounded text-xs font-bold transition-all ${activeTab === 'auditor' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'auditor' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
           >
             🔍 Player Auditor
           </button>
@@ -115,7 +145,11 @@ export default function AdminStudio() {
               selectedChar={selectedChar} 
               setSelectedChar={setSelectedChar} 
               fetchRoster={fetchRoster} 
-              roster={roster} // <--- Pass roster to compiler
+              roster={roster}
+              selectedRelic={selectedRelic}
+              setSelectedRelic={setSelectedRelic}
+              fetchRelics={fetchRelics}
+              relics={relics}
             />
           )}
           {activeTab === 'roster' && (
@@ -126,7 +160,16 @@ export default function AdminStudio() {
               roster={roster}
             />
           )}
+          {activeTab === 'pigments' && (
+            <PigmentManager 
+              selectedRelic={selectedRelic}
+              setSelectedRelic={setSelectedRelic}
+              fetchRelics={fetchRelics}
+              relics={relics}
+            />
+          )}
           {activeTab === 'banners' && <BannerManager roster={roster} />}
+          {activeTab === 'raids' && <RaidScheduler />}
           {activeTab === 'auditor' && <PlayerAuditor />}
         </div>
       </div>
