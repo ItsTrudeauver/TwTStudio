@@ -741,6 +741,7 @@ export default function SkillCompiler({
                             <option value="OPPOSING_INDEX">Opposing Index (Mind-read)</option>
                             <option value="LOWEST_HP_PERCENT_ALLY">Lowest HP % Ally (Heal)</option>
                             <option value="FRONT_MOST_ALLY">Front-most Ally (Raid Tank)</option>
+                            <option value="FRONT_MOST_ENEMY">Front-most Enemy (Raid Boss / Active Target)</option>
                             <option value="SLOT_1">Slot 1 (Absolute L)</option>
                             <option value="SLOT_2">Slot 2</option>
                             <option value="SLOT_3">Slot 3 (Middle)</option>
@@ -848,10 +849,22 @@ export default function SkillCompiler({
                           <option value="MULTIPLY_POWER">Multiply Power (Anya/Specialist Exception)</option>
                           <option value="ADD_FLAT_POWER">Add Flat Power (Mayple/Specialist Exception)</option>
                           <option value="MULTIPLY_ATK">Multiply ATK (3-Stat Budget Model)</option>
+                          <option value="SET_ATK_MULTIPLIER">Set ATK Multiplier</option>
                           <option value="MULTIPLY_DEF">Multiply DEF (3-Stat Budget Model)</option>
                           <option value="MULTIPLY_HP">Multiply HP (3-Stat Budget Model)</option>
                           <option value="ADD_FLAT_ATK">Add Flat ATK (3-Stat Budget Model)</option>
+                          <option value="MULTIPLY_BASE_ATK">Multiply Base ATK (Permanent Stat Shift)</option>
+                          <option value="ADD_BASE_ATK">Add Base ATK (Permanent Flat Stat Shift)</option>
+                          <option value="MULTIPLY_BASE_DEF">Multiply Base DEF (Permanent Stat Shift)</option>
+                          <option value="ADD_BASE_DEF">Add Base DEF (Permanent Flat Stat Shift)</option>
+                          <option value="MULTIPLY_BASE_POWER">Multiply Base Power (Synchronizes HP & Stats)</option>
+                          <option value="ADD_BASE_POWER">Add Base Power (Class-Allocated Bonus)</option>
+                          <option value="MULTIPLY_BASE_HP">Multiply Base HP (Synchronized Scaling Shift)</option>
+                          <option value="ADD_BASE_HP">Add Base HP (Synchronized Flat Bonus)</option>
                           <option value="HEAL_ALLY">Heal Ally (Shared HP / Raid HP Scaling)</option>
+                          <option value="HEAL_BOSS">Heal Boss (Inversion Mechanics)</option>
+                          <option value="DEAL_BOSS_DAMAGE">Deal Boss Damage (Scaled by Caster ATK)</option>
+                          <option value="DIVINE_REVERSAL">Divine Reversal (Inversion Damage Burst)</option>
                           <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield (Barrier)</option>
                           <option value="REINFORCE_STRUCK_SHIELD">Reinforce Struck Shield</option>
                           <option value="SET_BASE_POWER">Set Base Power (Anya Mind-read)</option>
@@ -863,6 +876,7 @@ export default function SkillCompiler({
                           <option value="ELIMINATE_UNIT">Eliminate / Kill Unit (Kamikaze)</option>
                           <option value="FORCE_BATTLE_RESULT">Force Battle Result (Revive)</option>
                           <option value="REGISTER_POST_PHASE">Register Post-Phase Action (Zodiac)</option>
+                          <option value="REGISTER_RETRY">Register Turn Retry (Retry Stacks Loop)</option>
                           <option value="CLEANSE_SUPPRESSIONS">Cleanse / Purge Suppressions</option>
                           <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier</option>
                           <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
@@ -908,12 +922,27 @@ export default function SkillCompiler({
                                     <option value="MULTIPLY_POWER">Multiply Power</option>
                                     <option value="ADD_FLAT_POWER">Add Flat Power</option>
                                     <option value="MULTIPLY_ATK">Multiply ATK</option>
+                                    <option value="SET_ATK_MULTIPLIER">Set ATK Multiplier</option>
                                     <option value="MULTIPLY_DEF">Multiply DEF</option>
                                     <option value="MULTIPLY_HP">Multiply HP</option>
                                     <option value="ADD_FLAT_ATK">Add Flat ATK</option>
+                                    <option value="MULTIPLY_BASE_ATK">Multiply Base ATK</option>
+                                    <option value="ADD_BASE_ATK">Add Base ATK</option>
+                                    <option value="MULTIPLY_BASE_DEF">Multiply Base DEF</option>
+                                    <option value="ADD_BASE_DEF">Add Base DEF</option>
+                                    <option value="MULTIPLY_BASE_POWER">Multiply Base Power</option>
+                                    <option value="ADD_BASE_POWER">Add Base Power</option>
+                                    <option value="MULTIPLY_BASE_HP">Multiply Base HP</option>
+                                    <option value="ADD_BASE_HP">Add Base HP</option>
+                                    <option value="HEAL_ALLY">Heal Ally</option>
+                                    <option value="DEAL_BOSS_DAMAGE">Deal Boss Damage</option>
+                                    <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield</option>
                                     <option value="FORCE_VARIANCE">Force Variance</option>
                                     <option value="REGISTER_POST_PHASE">Register Post-Phase Action</option>
                                     <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
+                                    <option value="ELIMINATE_UNIT">Eliminate / Kill Unit</option>
+                                    <option value="FORCE_BATTLE_RESULT">Force Battle Result</option>
+                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressions</option>
                                   </select>
                                 </div>
                                 <div>
