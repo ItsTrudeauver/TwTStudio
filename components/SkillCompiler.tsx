@@ -942,7 +942,7 @@ export default function SkillCompiler({
                                     <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
                                     <option value="ELIMINATE_UNIT">Eliminate / Kill Unit</option>
                                     <option value="FORCE_BATTLE_RESULT">Force Battle Result</option>
-                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressions</option>
+                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressionsdd</option>
                                   </select>
                                 </div>
                                 <div>
