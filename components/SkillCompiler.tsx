@@ -21,6 +21,59 @@ const STANDARD_TAGS = [
   'Yield_Multiplier', 'Death_Instance', 'Silence'
 ];
 
+export const BATTLE_ACTIONS = [
+  { value: "MULTIPLY_POWER", label: "Multiply Power (Anya/Specialist Exception)" },
+  { value: "ADD_FLAT_POWER", label: "Add Flat Power (Mayple/Specialist Exception)" },
+  { value: "MULTIPLY_ATK", label: "Multiply ATK (3-Stat Budget Model)" },
+  { value: "SET_ATK_MULTIPLIER", label: "Set ATK Multiplier" },
+  { value: "MULTIPLY_DEF", label: "Multiply DEF (3-Stat Budget Model)" },
+  { value: "MULTIPLY_HP", label: "Multiply HP (3-Stat Budget Model)" },
+  { value: "ADD_FLAT_ATK", label: "Add Flat ATK (3-Stat Budget Model)" },
+  { value: "MULTIPLY_BASE_ATK", label: "Multiply Base ATK (Permanent Stat Shift)" },
+  { value: "ADD_BASE_ATK", label: "Add Base ATK (Permanent Flat Stat Shift)" },
+  { value: "MULTIPLY_BASE_DEF", label: "Multiply Base DEF (Permanent Stat Shift)" },
+  { value: "ADD_BASE_DEF", label: "Add Base DEF (Permanent Flat Stat Shift)" },
+  { value: "MULTIPLY_BASE_POWER", label: "Multiply Base Power (Synchronizes HP & Stats)" },
+  { value: "ADD_BASE_POWER", label: "Add Base Power (Class-Allocated Bonus)" },
+  { value: "MULTIPLY_BASE_HP", label: "Multiply Base HP (Synchronized Scaling Shift)" },
+  { value: "ADD_BASE_HP", label: "Add Base HP (Synchronized Flat Bonus)" },
+  { value: "HEAL_ALLY", label: "Heal Ally (Shared HP / Raid HP Scaling)" },
+  { value: "HEAL_BOSS", label: "Heal Boss (Inversion Mechanics)" },
+  { value: "DEAL_BOSS_DAMAGE", label: "Deal Boss Damage (Scaled by Caster ATK)" },
+  { value: "DIVINE_REVERSAL", label: "Divine Reversal (Inversion Damage Burst)" },
+  { value: "ADD_PERSISTENT_SHIELD", label: "Add Persistent Shield (Barrier)" },
+  { value: "REINFORCE_STRUCK_SHIELD", label: "Reinforce Struck Shield" },
+  { value: "SET_BASE_POWER", label: "Set Base Power (Anya Mind-read)" },
+  { value: "SUPPRESS_SKILL", label: "Suppress / Silence Skill" },
+  { value: "SUPPRESS_RANDOM_SKILL", label: "Suppress Random Skill (Targeted slot-based seal)" },
+  { value: "CLEANSE_RANDOM_SUPPRESSION", label: "Cleanse Random Suppression (Clear active silence)" },
+  { value: "SUFFER_RECOIL_DAMAGE", label: "Suffer Recoil Damage (Deals self damage based on ATK formula)" },
+  { value: "DISPEL_BUFFS", label: "Dispel Buffs (Purge opposing positive modifiers)" },
+  { value: "CLEANSE_DEBUFFS", label: "Cleanse Debuffs (Purge active deficits and silences)" },
+  { value: "FORCE_VARIANCE", label: "Force Variance (Float value)" },
+  { value: "HARVEST_VARIANCE_DELTA", label: "Harvest Variance Delta" },
+  { value: "SET_STATE_FLAG", label: "Set Global State Flag" },
+  { value: "SET_MULTIPLIER_FLOOR", label: "Set Multiplier Floor (Cleanse)" },
+  { value: "ELIMINATE_UNIT", label: "Eliminate / Kill Unit (Kamikaze)" },
+  { value: "FORCE_BATTLE_RESULT", label: "Force Battle Result (Revive)" },
+  { value: "REGISTER_POST_PHASE", label: "Register Post-Phase Action (Zodiac)" },
+  { value: "REGISTER_RETRY", label: "Register Turn Retry (Retry Stacks Loop)" },
+  { value: "CLEANSE_SUPPRESSIONS", label: "Cleanse / Purge Suppressions" },
+  { value: "EXPEDITION_YIELD_MULTIPLIER", label: "Expedition Yield Multiplier (Time and resource bonuses)" },
+  { value: "EXPEDITION_TIME_SCALED_MULTIPLIER", label: "Expedition Time Scaled Multiplier" },
+  { value: "REWARD_MULTIPLIER", label: "Global Reward Multiplier" },
+  { value: "REGISTER_CHANCE_ROUTER", label: "Split Mutually Exclusive Branches (Joker)" },
+  { value: "APPLY_VULNERABLE", label: "Apply Vulnerable (Target receives amplified damage this turn)" },
+  { value: "APPLY_ENFEEBLE", label: "Apply Enfeeble (Target deals reduced outgoing damage this turn)" },
+  { value: "APPLY_BARRIER", label: "Apply Barrier (Negate one incoming hit; stackable, expires in 1 turn)" },
+  { value: "APPLY_STATUS_EFFECT", label: "Apply Status Effect (Custom Poison/Bleed/etc.)" },
+  { value: "CLEANSE_STATUS_EFFECT", label: "Cleanse Status Effect" },
+  { value: "DETONATE_STATUS_EFFECT", label: "Detonate Status Effect" },
+  { value: "ADD_CRIT_CHANCE", label: "Add Critical Strike Chance Flag (Additive float)" },
+  { value: "ADD_CRIT_MULTIPLIER", label: "Add Critical Strike Multiplier Flag (Additive float)" },
+  { value: "ADD_EVADE_CHANCE", label: "Add Evasion Chance Flag (Additive float)" }
+];
+
 interface TagSelectorProps {
   tags: string[];
   onChange: (newTags: string[]) => void;
@@ -804,53 +857,11 @@ export default function SkillCompiler({
                           onChange={(e) => updateBlockField(idx, 'action_type', e.target.value)}
                           className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-xs text-white"
                         >
-                          <option value="MULTIPLY_POWER">Multiply Power (Anya/Specialist Exception)</option>
-                          <option value="ADD_FLAT_POWER">Add Flat Power (Mayple/Specialist Exception)</option>
-                          <option value="MULTIPLY_ATK">Multiply ATK (3-Stat Budget Model)</option>
-                          <option value="SET_ATK_MULTIPLIER">Set ATK Multiplier</option>
-                          <option value="MULTIPLY_DEF">Multiply DEF (3-Stat Budget Model)</option>
-                          <option value="MULTIPLY_HP">Multiply HP (3-Stat Budget Model)</option>
-                          <option value="ADD_FLAT_ATK">Add Flat ATK (3-Stat Budget Model)</option>
-                          <option value="MULTIPLY_BASE_ATK">Multiply Base ATK (Permanent Stat Shift)</option>
-                          <option value="ADD_BASE_ATK">Add Base ATK (Permanent Flat Stat Shift)</option>
-                          <option value="MULTIPLY_BASE_DEF">Multiply Base DEF (Permanent Stat Shift)</option>
-                          <option value="ADD_BASE_DEF">Add Base DEF (Permanent Flat Stat Shift)</option>
-                          <option value="MULTIPLY_BASE_POWER">Multiply Base Power (Synchronizes HP & Stats)</option>
-                          <option value="ADD_BASE_POWER">Add Base Power (Class-Allocated Bonus)</option>
-                          <option value="MULTIPLY_BASE_HP">Multiply Base HP (Synchronized Scaling Shift)</option>
-                          <option value="ADD_BASE_HP">Add Base HP (Synchronized Flat Bonus)</option>
-                          <option value="HEAL_ALLY">Heal Ally (Shared HP / Raid HP Scaling)</option>
-                          <option value="HEAL_BOSS">Heal Boss (Inversion Mechanics)</option>
-                          <option value="DEAL_BOSS_DAMAGE">Deal Boss Damage (Scaled by Caster ATK)</option>
-                          <option value="DIVINE_REVERSAL">Divine Reversal (Inversion Damage Burst)</option>
-                          <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield (Barrier)</option>
-                          <option value="REINFORCE_STRUCK_SHIELD">Reinforce Struck Shield</option>
-                          <option value="SET_BASE_POWER">Set Base Power (Anya Mind-read)</option>
-                          <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
-                          <option value="SUPPRESS_RANDOM_SKILL">Suppress Random Skill (Targeted slot-based seal)</option>
-                          <option value="CLEANSE_RANDOM_SUPPRESSION">Cleanse Random Suppression (Clear active silence)</option>
-                          <option value="SUFFER_RECOIL_DAMAGE">Suffer Recoil Damage (Deals self damage based on ATK formula)</option>
-                          <option value="DISPEL_BUFFS">Dispel Buffs (Purge opposing positive modifiers)</option>
-                          <option value="CLEANSE_DEBUFFS">Cleanse Debuffs (Purge active deficits and silences)</option>
-                          <option value="FORCE_VARIANCE">Force Variance (Float value)</option>
-                          <option value="HARVEST_VARIANCE_DELTA">Harvest Variance Delta</option>
-                          <option value="SET_STATE_FLAG">Set Global State Flag</option>
-                          <option value="SET_MULTIPLIER_FLOOR">Set Multiplier Floor (Cleanse)</option>
-                          <option value="ELIMINATE_UNIT">Eliminate / Kill Unit (Kamikaze)</option>
-                          <option value="FORCE_BATTLE_RESULT">Force Battle Result (Revive)</option>
-                          <option value="REGISTER_POST_PHASE">Register Post-Phase Action (Zodiac)</option>
-                          <option value="REGISTER_RETRY">Register Turn Retry (Retry Stacks Loop)</option>
-                          <option value="CLEANSE_SUPPRESSIONS">Cleanse / Purge Suppressions</option>
-                          <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier (Time and resource bonuses)</option>
-                          <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
-                          <option value="REWARD_MULTIPLIER">Global Reward Multiplier</option>
-                          <option value="REGISTER_CHANCE_ROUTER">Split Mutually Exclusive Branches (Joker)</option>
-                          <option value="APPLY_VULNERABLE">Apply Vulnerable (Target receives amplified damage this turn)</option>
-                          <option value="APPLY_ENFEEBLE">Apply Enfeeble (Target deals reduced outgoing damage this turn)</option>
-                          <option value="APPLY_BARRIER">Apply Barrier (Negate one incoming hit; stackable, expires in 1 turn)</option>
-                          <option value="APPLY_STATUS_EFFECT">Apply Status Effect (Custom Poison/Bleed/etc.)</option>
-                          <option value="CLEANSE_STATUS_EFFECT">Cleanse Status Effect</option>
-                          <option value="DETONATE_STATUS_EFFECT">Detonate Status Effect</option>
+                          {BATTLE_ACTIONS.map(action => (
+                            <option key={action.value} value={action.value}>
+                              {action.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -887,42 +898,19 @@ export default function SkillCompiler({
                                 </div>
                                 <div>
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch DO</label>
-                                  <select value={branch.action_type} onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white">
-                                    <option value="MULTIPLY_POWER">Multiply Power</option>
-                                    <option value="MULTIPLY_BASE_POWER">Multiply Base Power</option>
-                                    <option value="ADD_FLAT_POWER">Add Flat Power</option>
-                                    <option value="MULTIPLY_ATK">Multiply ATK</option>
-                                    <option value="SET_ATK_MULTIPLIER">Set ATK Multiplier</option>
-                                    <option value="MULTIPLY_DEF">Multiply DEF</option>
-                                    <option value="MULTIPLY_HP">Multiply HP</option>
-                                    <option value="ADD_FLAT_ATK">Add Flat ATK</option>
-                                    <option value="MULTIPLY_BASE_ATK">Multiply Base ATK</option>
-                                    <option value="ADD_BASE_ATK">Add Base ATK</option>
-                                    <option value="MULTIPLY_BASE_DEF">Multiply Base DEF</option>
-                                    <option value="ADD_BASE_DEF">Add Base DEF</option>
-                                    <option value="MULTIPLY_BASE_POWER">Multiply Base Power</option>
-                                    <option value="ADD_BASE_POWER">Add Base Power</option>
-                                    <option value="MULTIPLY_BASE_HP">Multiply Base HP</option>
-                                    <option value="ADD_BASE_HP">Add Base HP</option>
-                                    <option value="HEAL_ALLY">Heal Ally</option>
-                                    <option value="DEAL_BOSS_DAMAGE">Deal Boss Damage</option>
-                                    <option value="ADD_PERSISTENT_SHIELD">Add Persistent Shield</option>
-                                    <option value="FORCE_VARIANCE">Force Variance</option>
-                                    <option value="REGISTER_POST_PHASE">Register Post-Phase Action</option>
-                                    <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
-                                    <option value="SUPPRESS_RANDOM_SKILL">Suppress Random Skill</option>
-                                    <option value="CLEANSE_RANDOM_SUPPRESSION">Cleanse Random Suppression</option>
-                                    <option value="SUFFER_RECOIL_DAMAGE">Suffer Recoil Damage</option>
-                                    <option value="DISPEL_BUFFS">Dispel Buffs</option>
-                                    <option value="CLEANSE_DEBUFFS">Cleanse Debuffs</option>
-                                    <option value="ELIMINATE_UNIT">Eliminate / Kill Unit</option>
-                                    <option value="FORCE_BATTLE_RESULT">Force Battle Result</option>
-                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressions</option>
-                                    <option value="APPLY_VULNERABLE">Apply Vulnerable</option>
-                                    <option value="APPLY_ENFEEBLE">Apply Enfeeble</option>
-                                    <option value="APPLY_BARRIER">Apply Barrier</option>
-                                    <option value="APPLY_STATUS_EFFECT">Apply Status Effect</option>
-                                    <option value="CLEANSE_STATUS_EFFECT">Cleanse Status Effect</option>
+                                  <select 
+                                    value={branch.action_type} 
+                                    onChange={(e) => updateBranchField(idx, brIdx, 'action_type', e.target.value)} 
+                                    className="w-full bg-neutral-900 border border-neutral-800 rounded p-1 text-[10px] text-white"
+                                  >
+                                    {BATTLE_ACTIONS
+                                      .filter(action => action.value !== "REGISTER_CHANCE_ROUTER")
+                                      .map(action => (
+                                        <option key={action.value} value={action.value}>
+                                          {action.label}
+                                        </option>
+                                      ))
+                                    }
                                   </select>
                                 </div>
                                 <div>
