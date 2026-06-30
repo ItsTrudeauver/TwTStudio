@@ -1,4 +1,3 @@
-/// components/SkillCompiler.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,7 +14,6 @@ interface SkillCompilerProps {
   relics: any[];
 }
 
-// Global registry of standard dynamic and static combat tags
 const STANDARD_TAGS = [
   'Gamble', 'Gamble_Succeed', 'Gamble_Fail', 'Buff', 'Debuff', 
   'Synergy', 'Sacrifice', 'Disabler', 'Responsive', 'Sustain', 
@@ -29,13 +27,10 @@ interface TagSelectorProps {
   placeholder?: string;
 }
 
-/// Self-contained multi-select tag controller with autocomplete and creation support
-// Self-contained multi-select tag controller with autocomplete and creation support
 function TagSelector({ tags, onChange, placeholder = "Select tags..." }: TagSelectorProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  // Dynamic typecast to bypass strict compile-time narrowing constraints
   const rawTags = tags as any;
   const sanitizedTags: string[] = Array.isArray(rawTags)
     ? rawTags
@@ -77,7 +72,7 @@ function TagSelector({ tags, onChange, placeholder = "Select tags..." }: TagSele
         ))}
         <input
           type="text"
-          placeholder={tags.length === 0 ? placeholder : ''}
+          placeholder={sanitizedTags.length === 0 ? placeholder : ''}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -95,12 +90,12 @@ function TagSelector({ tags, onChange, placeholder = "Select tags..." }: TagSele
               key={t}
               type="button"
               onClick={() => addTag(t)}
-              className="w-full text-left px-3 py-1.5 hover:bg-neutral-800 text-xs text-neutral-300 transition-colors"
+              className="w-full text-left px-3 py-1.5 hover:bg-neutral-880 text-xs text-neutral-300 transition-colors"
             >
               {t}
             </button>
           ))}
-          {query.trim() && !STANDARD_TAGS.includes(query.trim()) && !tags.includes(query.trim()) && (
+          {query.trim() && !STANDARD_TAGS.includes(query.trim()) && !sanitizedTags.includes(query.trim()) && (
             <button
               type="button"
               onClick={() => addTag(query.trim())}
@@ -138,11 +133,11 @@ export default function SkillCompiler({
   const [sandboxSuppressed, setSandboxSuppressed] = useState(0);
   const [sandboxResult, setSandboxResult] = useState<string | number>('');
 
-  // Search-dropdown states
+  // Search dropdown states
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  // In-state blocks initialized with complete double condition and nested branches
+  // In-state blocks initialized with conditions and branches
   const [blocks, setBlocks] = useState<any[]>([
     {
       trigger: 'ON_POWER_CALC',
@@ -160,19 +155,31 @@ export default function SkillCompiler({
 
   const handleRunSandbox = () => {
     try {
-      // Basic math parsing logic for mock calculations
+      // Stub tag helper calls and mathematical context variables to replicate backend engine scope
       let clean = testFormula
-        .replace(/dupes/g, String(sandboxDupes))
-        .replace(/dead_allies_count/g, String(sandboxDeadAllies))
-        .replace(/suppressed_count/g, String(sandboxSuppressed));
+        .replace(/\bdupes\b/g, String(sandboxDupes))
+        .replace(/\bdupe_level\b/g, String(sandboxDupes))
+        .replace(/\bdead_allies_count\b/g, String(sandboxDeadAllies))
+        .replace(/\bsuppressed_count\b/g, String(sandboxSuppressed))
+        .replace(/\bbond_level\b/g, '5')
+        .replace(/\bpower\b/g, '15000')
+        .replace(/\btrue_power\b/g, '15000')
+        .replace(/\bown_max_hp\b/g, '10000')
+        .replace(/\bown_current_hp\b/g, '8500')
+        .replace(/\bown_atk\b/g, '1200')
+        .replace(/\bown_def\b/g, '450')
+        .replace(/\btarget_max_hp\b/g, '50000')
+        .replace(/\btarget_current_hp\b/g, '35000')
+        .replace(/\btarget_lost_hp\b/g, '15000')
+        .replace(/count_tag\([^)]*\)/g, '1')
+        .replace(/has_tag\([^)]*\)/g, 'true')
+        .replace(/enemy_count_tag\([^)]*\)/g, '0')
+        .replace(/enemy_has_tag\([^)]*\)/g, 'false');
 
-      // Sanitize input formula string
       if (/[^-+*/()0-9.\s]/i.test(clean.replace(/\*\*/g, ''))) {
         throw new Error('Unsupported tokens in validation sandbox');
       }
 
-      // Handle exponentiation operator standard
-      const mathExpression = clean.replace(/\*\*/g, '^');
       const evalSafe = Function(`"use strict"; return (${clean})`)();
       setSandboxResult(Number(evalSafe));
     } catch (err: any) {
@@ -198,7 +205,7 @@ export default function SkillCompiler({
       action_type: 'MULTIPLY_ATK',
       value: '1.0',
       log: '',
-      block_tags: [] // Initialized empty block-level tags array
+      block_tags: []
     }]);
   };
 
@@ -212,7 +219,6 @@ export default function SkillCompiler({
     setBlocks(updated);
   };
 
-  // --- IF GATES STATE HELPERS ---
   const addConditionField = (blockIdx: number) => {
     const updated = [...blocks];
     updated[blockIdx].conditions.push({ type: 'NONE', param: '', connector: 'AND' });
@@ -231,11 +237,10 @@ export default function SkillCompiler({
     setBlocks(updated);
   };
 
-  // --- NESTED BRANCHING STATE HELPERS ---
   const addBranchField = (blockIdx: number) => {
     const updated = [...blocks];
     if (!updated[blockIdx].branches) updated[blockIdx].branches = [];
-    updated[blockIdx].branches.push({ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '' });
+    updated[blockIdx].branches.push({ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: [] });
     setBlocks(updated);
   };
 
@@ -255,11 +260,10 @@ export default function SkillCompiler({
     e.stopPropagation();
     const activeObj = compilerMode === 'character' ? selectedChar : selectedRelic;
     if (!activeObj) return;
-    if (!confirm(`🗑️ Are you sure you want to delete the "${skillNameToDelete}" skill from ${activeObj.name}?`)) return;
+    if (!confirm(`Are you sure you want to delete the "${skillNameToDelete}" skill from ${activeObj.name}?`)) return;
 
     const currentSkills = Array.isArray(activeObj.ability_tags) ? activeObj.ability_tags : [];
     const updatedSkills = currentSkills.filter((s: any) => s.skill_name !== skillNameToDelete);
-
     const targetTable = compilerMode === 'character' ? 'characters_cache' : 'relics_cache';
 
     const { error } = await supabase
@@ -280,21 +284,14 @@ export default function SkillCompiler({
     }
   };
 
-  const handleSaveSkill = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const activeObj = compilerMode === 'character' ? selectedChar : selectedRelic;
-    if (!activeObj) {
-      alert('Please select an active compiler target before saving.');
-      return;
-    }
-
-    const compiledSkill = {
+  const compileSkillPayload = () => {
+    return {
       skill_name: skillName,
       description: description.trim(),
       applies_in: appliesIn,
       priority: Number(priority),
       unsuppressable,
-      skill_tags: skillTags,
+      skill_tags: Array.isArray(skillTags) ? skillTags : [],
       blocks: blocks.map(b => ({
         trigger: b.trigger,
         target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
@@ -318,10 +315,19 @@ export default function SkillCompiler({
         })) : []
       }))
     };
+  };
 
+  const handleSaveSkill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const activeObj = compilerMode === 'character' ? selectedChar : selectedRelic;
+    if (!activeObj) {
+      alert('Please select an active compiler target before saving.');
+      return;
+    }
+
+    const compiledSkill = compileSkillPayload();
     const currentSkills = Array.isArray(activeObj.ability_tags) ? activeObj.ability_tags : [];
     const updatedSkills = [...currentSkills.filter((s: any) => s.skill_name !== skillName), compiledSkill];
-
     const targetTable = compilerMode === 'character' ? 'characters_cache' : 'relics_cache';
 
     const { error } = await supabase
@@ -332,7 +338,7 @@ export default function SkillCompiler({
     if (error) {
       alert(`Error saving skill: ${error.message}`);
     } else {
-      alert(`✨ Compiled skill saved successfully to ${activeObj.name}!`);
+      alert(`Compiled skill saved to ${activeObj.name}!`);
       if (compilerMode === 'character') {
         setSelectedChar({ ...selectedChar, ability_tags: updatedSkills });
         fetchRoster();
@@ -350,42 +356,11 @@ export default function SkillCompiler({
       alert('Please enter a skill name first.');
       return;
     }
-    const compiledSkill = {
-      skill_name: skillName,
-      description: description.trim(),
-      applies_in: appliesIn,
-      priority: Number(priority),
-      unsuppressable,
-      skill_tags: skillTags,
-      blocks: blocks.map(b => ({
-        trigger: b.trigger,
-        target: b.target === 'ALL_ALLIES_EXCEPT' ? `ALL_ALLIES_EXCEPT_${b.target_param}` : b.target,
-        chance: Number(b.chance),
-        action_type: b.action_type,
-        value: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.value,
-        log_template: b.action_type === 'REGISTER_CHANCE_ROUTER' ? '' : b.log,
-        // Save block_tags cleanly as an array of strings
-        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
-        conditions: b.conditions.map((c: any) => ({
-          type: c.type,
-          param: c.param,
-          connector: c.connector
-        })),
-        branches: b.action_type === 'REGISTER_CHANCE_ROUTER' ? b.branches.map((branch: any) => ({
-          chance: Number(branch.chance),
-          target: branch.target || 'INHERIT',
-          action_type: branch.action_type,
-          value: branch.value,
-          branch_tags: Array.isArray(branch.branch_tags) ? branch.branch_tags : [],
-          log_template: branch.log
-        })) : []
-      }))
-    };
-
+    const compiledSkill = compileSkillPayload();
     const updatedPresets = [...presets.filter((p: any) => p.skill_name !== skillName), compiledSkill];
     setPresets(updatedPresets);
     localStorage.setItem('stardust_skill_presets', JSON.stringify(updatedPresets));
-    alert(`📁 Saved "${skillName}" to Presets Library!`);
+    alert(`Saved "${skillName}" to Presets Library!`);
   };
 
   const handleLoadPreset = (preset: any) => {
@@ -395,53 +370,46 @@ export default function SkillCompiler({
     setPriority(preset.priority);
     setUnsuppressable(preset.unsuppressable || false);
     
-    // Load as a clean array of strings directly
-    setSkillTags(Array.isArray(preset.skill_tags) ? preset.skill_tags.join(', ') : '');
+    // Resolve the raw tag arrays cleanly to prevent array-to-string format mismatches on subsequent compiles
+    setSkillTags(Array.isArray(preset.skill_tags) ? preset.skill_tags : []);
 
     const formattedBlocks = preset.blocks.map((b: any) => {
-          const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
-          const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
-          const exceptId = isExcept ? b.target.split('_').pop() : '';
+      const isExcept = String(b.target).startsWith('ALL_ALLIES_EXCEPT_');
+      const baseTarget = isExcept ? 'ALL_ALLIES_EXCEPT' : b.target;
+      const exceptId = isExcept ? b.target.split('_').pop() : '';
 
+      return {
+        trigger: b.trigger,
+        target: baseTarget,
+        target_param: exceptId,
+        chance: String(b.chance || 100),
+        action_type: b.action_type,
+        value: b.value,
+        log: b.log_template,
+        block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
+        conditions: b.conditions ? b.conditions.map((c: any) => ({
+          type: c.type,
+          param: c.param,
+          connector: c.connector || 'AND'
+        })) : [{ type: 'NONE', param: '', connector: 'AND' }],
+        branches: b.branches ? b.branches.map((branch: any) => {
           return {
-            trigger: b.trigger,
-            target: baseTarget,
-            target_param: exceptId,
-            chance: String(b.chance || 100),
-            action_type: b.action_type,
-            value: b.value,
-            log: b.log_template,
-            // Unpack block_tags as an array of strings natively
-            block_tags: Array.isArray(b.block_tags) ? b.block_tags : [],
-            conditions: b.conditions ? b.conditions.map((c: any) => ({
-              type: c.type,
-              param: c.param,
-              connector: c.connector || 'AND'
-            })) : [{ type: 'NONE', param: '', connector: 'AND' }],
-            branches: b.branches ? b.branches.map((branch: any) => {
-              let bTags = '';
-              if (Array.isArray(branch.branch_tags)) {
-                bTags = branch.branch_tags.join(', ');
-              } else if (typeof branch.branch_tags === 'string') {
-                bTags = branch.branch_tags;
-              }
-              return {
-                chance: String(branch.chance || 50),
-                target: branch.target || 'INHERIT',
-                action_type: branch.action_type,
-                value: branch.value,
-                branch_tags: bTags,
-                log: branch.log_template
-              };
-            }) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: '' }]
+            chance: String(branch.chance || 50),
+            target: branch.target || 'INHERIT',
+            action_type: branch.action_type,
+            value: branch.value,
+            branch_tags: Array.isArray(branch.branch_tags) ? branch.branch_tags : [],
+            log: branch.log_template
           };
-        });
-        setBlocks(formattedBlocks);
+        }) : [{ chance: '50', target: 'INHERIT', action_type: 'MULTIPLY_ATK', value: '1.0', log: '', branch_tags: [] }]
+      };
+    });
+    setBlocks(formattedBlocks);
   };
 
   return (
-    <div className="space-y-4">
-      {/* Mode and Active Target Switch Panel */}
+    <div className="space-y-4 text-white">
+      {/* Mode Switch Panel */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-neutral-900 p-3 rounded-lg border border-neutral-800 relative">
         <div className="flex items-center gap-3">
           <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Target Type:</label>
@@ -464,7 +432,7 @@ export default function SkillCompiler({
               }}
               className={`py-1 px-3 rounded text-[10px] font-bold transition-all ${compilerMode === 'pigment' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
             >
-              🔮 Pigment (Relic)
+              🔮 Pigment
             </button>
           </div>
         </div>
@@ -541,9 +509,9 @@ export default function SkillCompiler({
         </div>
       </div>
 
-      {/* Grid Container */}
+      {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* PANEL 2.1: ACTIVE SKILLS & PRESETS */}
+        {/* Assets & Sandbox */}
         <div className="lg:col-span-2 flex flex-col gap-4">
           <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[350px] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">Unit Active Skills</h3>
@@ -580,7 +548,6 @@ export default function SkillCompiler({
             )}
           </div>
 
-          {/* Local Presets list */}
           <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg h-[200px] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Global Presets Library</h3>
             {presets.length > 0 ? (
@@ -597,7 +564,7 @@ export default function SkillCompiler({
             )}
           </div>
 
-          {/* Algebraic Formula Sandbox Tester */}
+          {/* Math validator */}
           <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-lg space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">🧮 Math Formula Validator</h3>
             <div className="space-y-2 text-xs">
@@ -614,15 +581,15 @@ export default function SkillCompiler({
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Dupes</label>
-                  <input type="number" value={sandboxDupes} onChange={(e) => setSandboxDupes(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                  <input type="number" value={sandboxDupes} onChange={(e) => setSandboxDupes(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center font-bold text-white" />
                 </div>
                 <div>
                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Dead Allies</label>
-                  <input type="number" value={sandboxDeadAllies} onChange={(e) => setSandboxDeadAllies(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                  <input type="number" value={sandboxDeadAllies} onChange={(e) => setSandboxDeadAllies(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center font-bold text-white" />
                 </div>
                 <div>
                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-1">Suppressed</label>
-                  <input type="number" value={sandboxSuppressed} onChange={(e) => setSandboxSuppressed(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center" />
+                  <input type="number" value={sandboxSuppressed} onChange={(e) => setSandboxSuppressed(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded p-1 text-center font-bold text-white" />
                 </div>
               </div>
               <button
@@ -642,7 +609,7 @@ export default function SkillCompiler({
           </div>
         </div>
 
-        {/* PANEL 2.2: COMPILER WORKSPACE */}
+        {/* Workspace */}
         <div className="lg:col-span-3 bg-neutral-900 p-6 border border-neutral-800 rounded-lg flex-1 overflow-y-auto">
           <div className="flex items-center justify-between mb-4 border-b border-neutral-800/40 pb-3">
             <h3 className="text-md font-bold">✨ Roster Compiler Rigs</h3>
@@ -681,7 +648,6 @@ export default function SkillCompiler({
                 </div>
               </div>
 
-              {/* DYNAMIC DESCRIPTION INPUT FIELD CONTAINER */}
               <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800/80">
                 <label className="block text-[10px] uppercase font-bold text-neutral-500 mb-1">Skill Plaintext Description</label>
                 <textarea
@@ -690,7 +656,7 @@ export default function SkillCompiler({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-neutral-900 border border-neutral-800 rounded p-2 text-xs text-white focus:outline-none focus:border-neutral-700 resize-none"
-                  placeholder="Strict operational explanation. What happens, when, to whom. No flavor."
+                  placeholder="Operational execution logs only. What happens, when, to whom. No lore or flavor text."
                 />
               </div>
 
@@ -699,18 +665,13 @@ export default function SkillCompiler({
                   <div key={idx} className="bg-neutral-950/80 border border-neutral-800/80 p-3 rounded-lg relative space-y-3">
                     <button type="button" onClick={() => removeBlockField(idx)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs">✕</button>
                     
-                    {/* Line 1: WHEN / ON / CHANCE */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">WHEN (Trigger)</label>
                         <select
                           value={block.trigger}
-                          onChange={(e) => {
-                            const next = [...blocks];
-                            next[idx].trigger = e.target.value;
-                            setBlocks(next);
-                          }}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
+                          onChange={(e) => updateBlockField(idx, 'trigger', e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white animate-none"
                         >
                           <option value="ON_BATTLE_START">Battle Starts</option>
                           <option value="ON_POWER_CALC">Power is Calculated</option>
@@ -719,7 +680,6 @@ export default function SkillCompiler({
                         </select>
                       </div>
                       
-                      {/* Target Selector & Optional Target Parameter */}
                       <div className="flex gap-2">
                         <div className="flex-1">
                           <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">ON (Target)</label>
@@ -738,19 +698,18 @@ export default function SkillCompiler({
                             <option value="WEAKEST_ENEMY">Weakest Enemy</option>
                             <option value="STRONGEST_ALLY">Strongest Ally</option>
                             <option value="STRONGEST_ENEMY">Strongest Enemy</option>
-                            <option value="OPPOSING_INDEX">Opposing Index (Mind-read)</option>
+                            <option value="OPPOSING_INDEX">Opposing Index (Symmetric slot mapping)</option>
                             <option value="LOWEST_HP_PERCENT_ALLY">Lowest HP % Ally (Heal)</option>
                             <option value="FRONT_MOST_ALLY">Front-most Ally (Raid Tank)</option>
                             <option value="FRONT_MOST_ENEMY">Front-most Enemy (Raid Boss / Active Target)</option>
                             <option value="SLOT_1">Slot 1 (Absolute L)</option>
                             <option value="SLOT_2">Slot 2</option>
-                            <option value="SLOT_3">Slot 3 (Middle)</option>
+                            <option value="Slot 3">Slot 3 (Middle)</option>
                             <option value="SLOT_4">Slot 4</option>
                             <option value="SLOT_5">Slot 5 (Absolute R)</option>
                           </select>
                         </div>
                         
-                        {/* Dedicated Target Parameter input field */}
                         {block.target === 'ALL_ALLIES_EXCEPT' && (
                           <div className="w-20">
                             <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">Except ID</label>
@@ -758,7 +717,7 @@ export default function SkillCompiler({
                               type="text"
                               value={block.target_param || ''}
                               onChange={(e) => updateBlockField(idx, 'target_param', e.target.value)}
-                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white font-semibold"
                               placeholder="ID"
                             />
                           </div>
@@ -772,18 +731,14 @@ export default function SkillCompiler({
                           min="1"
                           max="100"
                           value={block.chance}
-                          onChange={(e) => {
-                            const next = [...blocks];
-                            next[idx].chance = e.target.value;
-                            setBlocks(next);
-                          }}
+                          onChange={(e) => updateBlockField(idx, 'chance', e.target.value)}
                           className="w-full bg-neutral-900 border border-neutral-800 rounded p-1.5 text-xs text-white"
                           placeholder="e.g. 100"
                         />
                       </div>
                     </div>
 
-                    {/* Chained Logical Gates */}
+                    {/* Logic Gate Chain */}
                     <div className="bg-neutral-900/60 p-2 rounded border border-neutral-800 space-y-2">
                       <div className="flex items-center justify-between border-b border-neutral-800/40 pb-1">
                         <span className="text-[10px] uppercase font-bold text-neutral-400">🛡️ Logic Chain (IF Gates)</span>
@@ -837,7 +792,7 @@ export default function SkillCompiler({
                       ))}
                     </div>
 
-                    {/* DO & VALUE / BRANCHES */}
+                    {/* Action Select and Sub-branches */}
                     <div className="grid grid-cols-1 gap-3">
                       <div>
                         <label className="block text-[9px] uppercase font-bold text-neutral-500 mb-1">DO (Action Type)</label>
@@ -869,6 +824,11 @@ export default function SkillCompiler({
                           <option value="REINFORCE_STRUCK_SHIELD">Reinforce Struck Shield</option>
                           <option value="SET_BASE_POWER">Set Base Power (Anya Mind-read)</option>
                           <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
+                          <option value="SUPPRESS_RANDOM_SKILL">Suppress Random Skill (Targeted slot-based seal)</option>
+                          <option value="CLEANSE_RANDOM_SUPPRESSION">Cleanse Random Suppression (Clear active silence)</option>
+                          <option value="SUFFER_RECOIL_DAMAGE">Suffer Recoil Damage (Deals self damage based on ATK formula)</option>
+                          <option value="DISPEL_BUFFS">Dispel Buffs (Purge opposing positive modifiers)</option>
+                          <option value="CLEANSE_DEBUFFS">Cleanse Debuffs (Purge active deficits and silences)</option>
                           <option value="FORCE_VARIANCE">Force Variance (Float value)</option>
                           <option value="HARVEST_VARIANCE_DELTA">Harvest Variance Delta</option>
                           <option value="SET_STATE_FLAG">Set Global State Flag</option>
@@ -878,14 +838,13 @@ export default function SkillCompiler({
                           <option value="REGISTER_POST_PHASE">Register Post-Phase Action (Zodiac)</option>
                           <option value="REGISTER_RETRY">Register Turn Retry (Retry Stacks Loop)</option>
                           <option value="CLEANSE_SUPPRESSIONS">Cleanse / Purge Suppressions</option>
-                          <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier</option>
+                          <option value="EXPEDITION_YIELD_MULTIPLIER">Expedition Yield Multiplier (Time and resource bonuses)</option>
                           <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
                           <option value="REWARD_MULTIPLIER">Global Reward Multiplier</option>
                           <option value="REGISTER_CHANCE_ROUTER">Split Mutually Exclusive Branches (Joker)</option>
                         </select>
                       </div>
 
-                      {/* DYNAMIC RENDERING: Standard Input vs. Nested Branches List */}
                       {block.action_type === 'REGISTER_CHANCE_ROUTER' ? (
                         <div className="bg-neutral-900/60 p-3 rounded border border-neutral-800 space-y-3">
                           <div className="flex items-center justify-between border-b border-neutral-800/40 pb-1.5">
@@ -914,6 +873,7 @@ export default function SkillCompiler({
                                     <option value="WEAKEST_ENEMY">Weakest Enemy</option>
                                     <option value="STRONGEST_ALLY">Strongest Ally</option>
                                     <option value="STRONGEST_ENEMY">Strongest Enemy</option>
+                                    <option value="OPPOSING_INDEX">Opposing Index</option>
                                   </select>
                                 </div>
                                 <div>
@@ -941,9 +901,14 @@ export default function SkillCompiler({
                                     <option value="FORCE_VARIANCE">Force Variance</option>
                                     <option value="REGISTER_POST_PHASE">Register Post-Phase Action</option>
                                     <option value="SUPPRESS_SKILL">Suppress / Silence Skill</option>
+                                    <option value="SUPPRESS_RANDOM_SKILL">Suppress Random Skill</option>
+                                    <option value="CLEANSE_RANDOM_SUPPRESSION">Cleanse Random Suppression</option>
+                                    <option value="SUFFER_RECOIL_DAMAGE">Suffer Recoil Damage</option>
+                                    <option value="DISPEL_BUFFS">Dispel Buffs</option>
+                                    <option value="CLEANSE_DEBUFFS">Cleanse Debuffs</option>
                                     <option value="ELIMINATE_UNIT">Eliminate / Kill Unit</option>
                                     <option value="FORCE_BATTLE_RESULT">Force Battle Result</option>
-                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressionsdd</option>
+                                    <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressions</option>
                                   </select>
                                 </div>
                                 <div>
@@ -953,7 +918,7 @@ export default function SkillCompiler({
                                 <div className="md:col-span-2">
                                   <label className="block text-[8px] uppercase font-bold text-neutral-500 mb-0.5">Branch Tags</label>
                                   <TagSelector
-                                    tags={Array.isArray(branch.branch_tags) ? branch.branch_tags : (branch.branch_tags ? branch.branch_tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [])}
+                                    tags={Array.isArray(branch.branch_tags) ? branch.branch_tags : []}
                                     onChange={(newTags) => updateBranchField(idx, brIdx, 'branch_tags', newTags)}
                                   />
                                 </div>
@@ -965,7 +930,6 @@ export default function SkillCompiler({
                               </div>
                             </div>
                           ))}
-                          
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
