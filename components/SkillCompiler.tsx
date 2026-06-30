@@ -842,6 +842,9 @@ export default function SkillCompiler({
                           <option value="EXPEDITION_TIME_SCALED_MULTIPLIER">Expedition Time Scaled Multiplier</option>
                           <option value="REWARD_MULTIPLIER">Global Reward Multiplier</option>
                           <option value="REGISTER_CHANCE_ROUTER">Split Mutually Exclusive Branches (Joker)</option>
+                          <option value="APPLY_VULNERABLE">Apply Vulnerable (Target receives amplified damage this turn)</option>
+                          <option value="APPLY_ENFEEBLE">Apply Enfeeble (Target deals reduced outgoing damage this turn)</option>
+                          <option value="APPLY_BARRIER">Apply Barrier (Negate one incoming hit; stackable, expires in 1 turn)</option>
                         </select>
                       </div>
 
@@ -909,6 +912,9 @@ export default function SkillCompiler({
                                     <option value="ELIMINATE_UNIT">Eliminate / Kill Unit</option>
                                     <option value="FORCE_BATTLE_RESULT">Force Battle Result</option>
                                     <option value="CLEANSE_SUPPRESSIONS">Cleanse Suppressions</option>
+                                    <option value="APPLY_VULNERABLE">Apply Vulnerable</option>
+                                    <option value="APPLY_ENFEEBLE">Apply Enfeeble</option>
+                                    <option value="APPLY_BARRIER">Apply Barrier</option>
                                   </select>
                                 </div>
                                 <div>
