@@ -11,6 +11,7 @@ import BannerManager from '../components/BannerManager';
 import PlayerAuditor from '../components/PlayerAuditor';
 import PigmentManager from '../components/PigmentManager';
 import RaidScheduler from '../components/RaidScheduler';
+import RaidBossCreator from '../components/RaidBossCreator';
 
 export default function AdminStudio() {
   const [email, setEmail] = useState('');
@@ -20,8 +21,8 @@ export default function AdminStudio() {
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Tab Manager: Roster, Pigments, Skills, Banners, Raids, Player Audits
-  const [activeTab, setActiveTab] = useState<'roster' | 'pigments' | 'skills' | 'banners' | 'raids' | 'auditor'>('skills');
+  // Tab Manager: Roster, Pigments, Skills, Banners, Raids, Player Audits, Boss Creator
+  const [activeTab, setActiveTab] = useState<'roster' | 'pigments' | 'skills' | 'banners' | 'raids' | 'auditor' | 'boss_creator'>('skills');
   const [roster, setRoster] = useState<any[]>([]);
   const [relics, setRelics] = useState<any[]>([]);
   const [selectedChar, setSelectedChar] = useState<any>(null);
@@ -131,6 +132,12 @@ export default function AdminStudio() {
             ⚔️ Raid Schedule Panel
           </button>
           <button
+            onClick={() => setActiveTab('boss_creator')}
+            className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'boss_creator' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
+          >
+            👾 Raid Boss Creator
+          </button>
+          <button
             onClick={() => setActiveTab('auditor')}
             className={`py-1.5 px-4 rounded text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'auditor' ? 'bg-neutral-100 text-neutral-900' : 'bg-neutral-900 text-neutral-400'}`}
           >
@@ -171,6 +178,7 @@ export default function AdminStudio() {
           {activeTab === 'banners' && <BannerManager roster={roster} />}
           {activeTab === 'raids' && <RaidScheduler />}
           {activeTab === 'auditor' && <PlayerAuditor />}
+          {activeTab === 'boss_creator' && <RaidBossCreator />}
         </div>
       </div>
     );
