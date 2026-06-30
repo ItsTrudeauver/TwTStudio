@@ -174,7 +174,9 @@ export default function SkillCompiler({
         .replace(/count_tag\([^)]*\)/g, '1')
         .replace(/has_tag\([^)]*\)/g, 'true')
         .replace(/enemy_count_tag\([^)]*\)/g, '0')
-        .replace(/enemy_has_tag\([^)]*\)/g, 'false');
+        .replace(/enemy_has_tag\([^)]*\)/g, 'false')
+        .replace(/get_status_stacks\([^)]*\)/g, '1')
+        .replace(/has_status\([^)]*\)/g, 'true');
 
       if (/[^-+*/()0-9.\s]/i.test(clean.replace(/\*\*/g, ''))) {
         throw new Error('Unsupported tokens in validation sandbox');
@@ -773,6 +775,7 @@ export default function SkillCompiler({
                             <option value="IF_SELF_SUPPRESSED">If Self is Silenced</option>
                             <option value="IF_RESULT_IS">If Battle Result is (LOSS/WIN)</option>
                             <option value="IF_FLAG_ACTIVE">If Global State Flag is True</option>
+                            <option value="IF_TURN_MODULO">Turn is Modulo of N</option>
                           </select>
 
                           {cond.type !== 'NONE' && (
@@ -845,6 +848,8 @@ export default function SkillCompiler({
                           <option value="APPLY_VULNERABLE">Apply Vulnerable (Target receives amplified damage this turn)</option>
                           <option value="APPLY_ENFEEBLE">Apply Enfeeble (Target deals reduced outgoing damage this turn)</option>
                           <option value="APPLY_BARRIER">Apply Barrier (Negate one incoming hit; stackable, expires in 1 turn)</option>
+                          <option value="APPLY_STATUS_EFFECT">Apply Status Effect (Custom Poison/Bleed/etc.)</option>
+                          <option value="CLEANSE_STATUS_EFFECT">Cleanse Status Effect</option>
                         </select>
                       </div>
 
