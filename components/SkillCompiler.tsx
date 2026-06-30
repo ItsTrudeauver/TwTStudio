@@ -850,6 +850,7 @@ export default function SkillCompiler({
                           <option value="APPLY_BARRIER">Apply Barrier (Negate one incoming hit; stackable, expires in 1 turn)</option>
                           <option value="APPLY_STATUS_EFFECT">Apply Status Effect (Custom Poison/Bleed/etc.)</option>
                           <option value="CLEANSE_STATUS_EFFECT">Cleanse Status Effect</option>
+                          <option value="DETONATE_STATUS_EFFECT">Detonate Status Effect</option>
                         </select>
                       </div>
 
@@ -920,6 +921,8 @@ export default function SkillCompiler({
                                     <option value="APPLY_VULNERABLE">Apply Vulnerable</option>
                                     <option value="APPLY_ENFEEBLE">Apply Enfeeble</option>
                                     <option value="APPLY_BARRIER">Apply Barrier</option>
+                                    <option value="APPLY_STATUS_EFFECT">Apply Status Effect</option>
+                                    <option value="CLEANSE_STATUS_EFFECT">Cleanse Status Effect</option>
                                   </select>
                                 </div>
                                 <div>
