@@ -40,6 +40,7 @@ export const BATTLE_ACTIONS = [
   { value: "HEAL_ALLY", label: "Heal Ally (Shared HP / Raid HP Scaling)" },
   { value: "HEAL_BOSS", label: "Heal Boss (Inversion Mechanics)" },
   { value: "DEAL_BOSS_DAMAGE", label: "Deal Boss Damage (Scaled by Caster ATK)" },
+  { value: "DEAL_PVP_DAMAGE", label: "Deal PvP Damage (Scaled by Caster ATK)" },
   { value: "DIVINE_REVERSAL", label: "Divine Reversal (Inversion Damage Burst)" },
   { value: "ADD_PERSISTENT_SHIELD", label: "Add Persistent Shield (Barrier)" },
   { value: "REINFORCE_STRUCK_SHIELD", label: "Reinforce Struck Shield" },
@@ -70,7 +71,9 @@ export const BATTLE_ACTIONS = [
   { value: "CLEANSE_STATUS_EFFECT", label: "Cleanse Status Effect" },
   { value: "DETONATE_STATUS_EFFECT", label: "Detonate Status Effect" },
   { value: "ADD_CRIT_CHANCE", label: "Add Critical Strike Chance Flag (Additive float)" },
+  { value: "ADD_TEMP_CRIT_CHANCE", label: "Add Temporary Critical Strike Chance (Turn-based additive float)" },
   { value: "ADD_CRIT_MULTIPLIER", label: "Add Critical Strike Multiplier Flag (Additive float)" },
+  { value: "ADD_TEMP_CRIT_MULTIPLIER", label: "Add Temporary Critical Strike Multiplier (Turn-based additive float)" },
   { value: "ADD_EVADE_CHANCE", label: "Add Evasion Chance Flag (Additive float)" }
 ];
 
