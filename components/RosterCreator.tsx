@@ -156,12 +156,16 @@ export default function RosterCreator({ selectedChar, setSelectedChar, fetchRost
       }
       // Upload portrait if present in state
       if (croppedFile) {
-        const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
-        await supabase.storage.from('portraits').upload(`${charId}.jpg`, fileToUpload, { upsert: true });
+  const fileToUpload = new File([croppedFile], `${charId}.jpg`, { type: 'image/jpeg' });
+  await supabase.storage.from('portraits').upload(`${charId}.jpg`, fileToUpload, { upsert: true });
 
-        const { data: { publicUrl } } = supabase.storage.from('portraits').getPublicUrl(`${charId}.jpg`);
-        await supabase.from('characters_cache').update({ image_url: publicUrl }).eq('id', charId);
-      }
+  const { data: { publicUrl } } = supabase.storage.from('portraits').getPublicUrl(`${charId}.jpg`);
+  
+  // Replace the raw Supabase domain with your Cloudflare CDN domain before saving
+  const cdnUrl = publicUrl.replace('cvwmcjfgmushdggkbdyt.supabase.co', 'cdn.twt-portal.xyz');
+  
+  await supabase.from('characters_cache').update({ image_url: cdnUrl }).eq('id', charId);
+}
 
       alert(`🎉 Successfully ${selectedChar ? 'Updated' : 'Created'}: ${charName}!`);
       fetchRoster();

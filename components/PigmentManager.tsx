@@ -55,6 +55,11 @@ export default function PigmentManager({ selectedRelic, setSelectedRelic, fetchR
     setLoading(true);
 
     try {
+      // Automatically clean the URL if a raw Supabase link is pasted
+      const sanitizedImageUrl = imageUrl 
+        ? imageUrl.replace('cvwmcjfgmushdggkbdyt.supabase.co', 'cdn.twt-portal.xyz') 
+        : '';
+
       const payload = {
         name,
         rarity,
@@ -63,10 +68,11 @@ export default function PigmentManager({ selectedRelic, setSelectedRelic, fetchR
         base_def: Number(baseDef),
         base_hp: Number(baseHp),
         cost: Number(cost),
-        image_url: imageUrl
+        image_url: sanitizedImageUrl
       };
 
       if (selectedRelic) {
+        // --- EDIT MODE ---
         const { error } = await supabase
           .from('relics_cache')
           .update(payload)
@@ -74,11 +80,24 @@ export default function PigmentManager({ selectedRelic, setSelectedRelic, fetchR
         if (error) throw error;
         alert(`🎉 Updated Pigment: ${name}`);
       } else {
+        // --- CREATION MODE: FETCH & INCREMENT ID ---
+        const { data: latest, error: fetchError } = await supabase
+          .from('relics_cache')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1);
+
+        if (fetchError) throw fetchError;
+
+        // If table is empty, start at 1. Otherwise, take the highest ID and add 1.
+        const nextId = latest && latest.length > 0 ? latest[0].id + 1 : 1;
+
         const { error } = await supabase
           .from('relics_cache')
-          .insert({ ...payload, ability_tags: [] });
+          .insert({ id: nextId, ...payload, ability_tags: [] });
+          
         if (error) throw error;
-        alert(`🎉 Created Pigment: ${name}`);
+        alert(`🎉 Created Pigment: ${name} (Assigned ID: ${nextId})`);
         handleClearSelection();
       }
       fetchRelics();
